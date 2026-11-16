@@ -1,1 +1,16 @@
-{"month":"","calls":0,"lastRun":{}}
+{
+  "month": "2026-11",
+  "calls": 26,
+  "lastRun": {
+    "wa-longbeach": "2026-11-16T07:34:26.291Z",
+    "wa-graysharbor": "2026-11-16T07:34:26.291Z",
+    "wa-strait": "2026-11-16T07:34:26.291Z",
+    "wa-hoodcanal": "2026-11-16T07:34:26.291Z",
+    "wa-kitsap": "2026-11-16T07:34:26.291Z",
+    "wa-southsound": "2026-11-16T07:34:26.291Z",
+    "wa-whidbey": "2026-11-16T07:34:26.291Z",
+    "wa-northsound": "2026-11-16T07:34:26.291Z",
+    "lower-columbia": "2026-11-16T07:34:26.291Z",
+    "columbia-gorge": "2026-11-16T07:34:26.291Z"
+  }
+}
