@@ -1,0 +1,14 @@
+{
+  "_comment": "Areas the daily job pulls from RentCast. The free plan allows 50 API calls a month, so the job makes at most one call per day and rotates through this list. Fewer searches = each area refreshed more often. Each search can be a city/state, or a latitude/longitude/radius (miles) circle. Optional: propertyType (Single Family, Condo, Townhouse, Manufactured, Multi-Family, Land), maxPrice.",
+  "monthlyCallBudget": 40,
+  "callsPerRun": 1,
+  "searches": [
+    { "name": "Mount Rainier / Packwood", "latitude": 46.70, "longitude": -121.75, "radius": 25 },
+    { "name": "Bend", "city": "Bend", "state": "OR" },
+    { "name": "WA Coast", "latitude": 46.95, "longitude": -124.15, "radius": 15 },
+    { "name": "Leavenworth / Lake Chelan", "latitude": 47.70, "longitude": -120.40, "radius": 30 },
+    { "name": "Oregon Central Coast", "latitude": 44.85, "longitude": -124.02, "radius": 20 },
+    { "name": "Mt Hood / Hood River", "latitude": 45.40, "longitude": -121.75, "radius": 25 },
+    { "name": "Methow Valley", "latitude": 48.48, "longitude": -120.19, "radius": 20 }
+  ]
+}
