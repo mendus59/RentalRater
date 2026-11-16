@@ -82,7 +82,7 @@ export const DEFAULT_PREFS = {
   locations: [],                 // market ids; empty = all of WA and OR
   propertyTypes: ['Single Family', 'Condo', 'Townhouse', 'Manufactured', 'Land'],
   scenarios: ['str_ready', 'refurbish', 'tiny_home', 'build'],
-  maxPrice: 900000,
+  maxPrice: 1000000,
   minBeds: 0,
   financeId: 'dscr30',
   downPct: 25,
