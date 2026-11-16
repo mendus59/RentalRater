@@ -128,3 +128,6 @@ details > summary { cursor: pointer; font-weight: 600; margin: 4px 0; }
 .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; z-index: 30; }
 .toast[hidden] { display: none; }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+.coverage summary { cursor: pointer; }
+.coverage ul { margin: 4px 0 10px; padding-left: 18px; }
+.coverage li { margin: 2px 0; }

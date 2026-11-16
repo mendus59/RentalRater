@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { evaluate, evaluateAll, monthlyPayment, maxPriceForBuy, applicableScenarios, guessCondition } from '../js/calc.js';
 import { mergePrefs } from '../js/defaults.js';
 import { findMarket } from '../js/markets.js';
-import { merge } from '../scripts/fetch-listings.mjs';
+import { merge, annotate, callsAvailable, planJobs } from '../scripts/fetch-listings.mjs';
+import { readFileSync } from 'node:fs';
+const config = JSON.parse(readFileSync(new URL('../config/searches.json', import.meta.url)));
 
 const prefs = mergePrefs({});
 const house = { id: 'h', city: 'Bend', state: 'OR', price: 500000, bedrooms: 3, bathrooms: 2, squareFootage: 1500, yearBuilt: 2015, propertyType: 'Single Family', lotSize: 7000 };
@@ -89,13 +91,47 @@ test('evaluateAll ranks best verdict first', () => {
 
 test('listing merge tracks new, price changes and removals', () => {
   const t1 = '2026-11-01T00:00:00Z', t2 = '2026-11-02T00:00:00Z';
-  const a = { id: 'a', price: 100, searchKey: 'k' }, b = { id: 'b', price: 200, searchKey: 'k' };
-  let m = merge([{ id: 's', sample: true }], [a, b], 'k', t1);
+  const a = { id: 'a', price: 100, region: 'r' }, b = { id: 'b', price: 200, region: 'r' };
+  let m = merge([{ id: 's', sample: true }], [a, b], t1, { regionId: 'r', complete: true });
   assert.equal(m.added, 2);
   assert.ok(!m.listings.some((l) => l.sample));
-  m = merge(m.listings, [{ ...a, price: 90 }], 'k', t2);
+  // A new-listing sweep never marks anything removed.
+  m = merge(m.listings, [{ ...a, price: 90 }], t2);
   assert.equal(m.changed, 1);
+  assert.equal(m.removed, 0);
+  // An incomplete region refresh doesn't either.
+  assert.equal(merge(m.listings, [a], t2, { regionId: 'r', complete: false }).removed, 0);
+  m = merge(m.listings, [{ ...a, price: 90 }], t2, { regionId: 'r', complete: true });
   assert.equal(m.removed, 1);
   assert.equal(m.listings.find((l) => l.id === 'a').firstSeen, t1);
   assert.equal(m.listings.find((l) => l.id === 'b').status, 'Inactive');
+});
+
+test('coverage keeps coastal listings within 10 miles of water and inland hotspots', () => {
+  const at = (latitude, longitude, extra = {}) => ({ id: 'x', price: 400000, propertyType: 'Single Family', latitude, longitude, ...extra });
+  assert.equal(annotate(at(45.99, -123.92), config).region, 'or-northcoast'); // Seaside
+  assert.ok(annotate(at(45.99, -123.92), config).waterMiles < 2);
+  assert.equal(annotate(at(44.06, -121.31), config).region, 'x-centraloregon'); // Bend, lifted filter
+  assert.equal(annotate(at(47.6, -122.33), config), null); // Seattle excluded
+  assert.equal(annotate(at(45.52, -122.67), config), null); // Portland excluded
+  assert.equal(annotate(at(47.95, -124.39), config), null); // Forks, >10 mi from the ocean
+  assert.equal(annotate(at(45.99, -123.92, { price: 1200000 }), config), null);
+  assert.equal(annotate(at(45.99, -123.92, { propertyType: 'Multi-Family' }), config), null);
+});
+
+test('daily calls are paced across the month and seeding comes first', () => {
+  const st = { calls: 0, lastRun: {} };
+  assert.equal(callsAvailable(config, st, new Date('2026-11-01T14:00:00Z')), 2);
+  assert.equal(callsAvailable(config, { calls: 40 }, new Date('2026-11-30T14:00:00Z')), 8);
+  assert.equal(callsAvailable(config, { calls: 48 }, new Date('2026-11-30T14:00:00Z')), 0);
+  const now = new Date('2026-11-16T14:00:00Z');
+  let jobs = planJobs(config, st, now);
+  assert.equal(jobs.length, config.regions.length);
+  assert.ok(jobs.every((j) => j.kind === 'region'));
+  const lastRun = Object.fromEntries([...config.regions, ...config.newListingSweeps].map((j) => [j.id, '2026-11-15T14:00:00Z']));
+  assert.equal(planJobs(config, { lastRun }, now).length, 0);
+  lastRun['new-wa-west'] = '2026-11-13T14:00:00Z';
+  lastRun['wa-kitsap'] = '2026-11-01T14:00:00Z';
+  jobs = planJobs(config, { lastRun }, now);
+  assert.deepEqual(jobs.map((j) => j.id), ['new-wa-west', 'wa-kitsap']);
 });

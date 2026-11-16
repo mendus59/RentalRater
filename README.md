@@ -51,17 +51,29 @@ If `apiKey` is blank or Firebase can't load, the app runs in local mode and save
 to the browser.
 
 ### 3. Daily listings (RentCast)
-1. Sign up for the free RentCast API plan at <https://app.rentcast.io/app/api>
-   (50 requests/month) and create an API key.
-2. Repo Settings → Secrets and variables → Actions → New secret
-   `RENTCAST_API_KEY`.
-3. Edit `config/searches.json` to choose areas. Each daily run spends one call
-   on the next area in the list, so with 7 areas each is refreshed about weekly.
-   Fewer areas means fresher data. Run the workflow manually from the Actions
-   tab to fetch immediately.
+The key lives in the `RENTCAST_API_KEY` repo secret. `config/searches.json`
+controls what gets pulled:
 
-Until a key is set, the app shows clearly-labelled sample listings. You can
-always rate any property by hand on the **Evaluate** tab.
+- **Filters**: single family, condo, townhouse, manufactured and land, under
+  $1M, within 10 miles of the Pacific, Puget Sound, Hood Canal, the Strait of
+  Juan de Fuca, the Columbia River or Lake Chelan (`js/geo.js` has the rough
+  shorelines). Multi-family and apartments are left out.
+- **Regions**: 15 coastal/river areas plus 4 inland STR hotspots where the
+  water rule is lifted (Rainier, Mt Hood, Bend/Sunriver/Sisters, Methow).
+  Seattle/Tacoma/Everett, Portland/Vancouver and Leavenworth are left out on
+  purpose; the reasons are listed in the file and shown in the app.
+- **Budget**: the free plan gives 50 calls/month and each call returns up to
+  500 listings. The job spreads 48 calls evenly over the month. Three wide
+  "new listings" sweeps (last 4 days only) run every 3 days, and each region
+  gets a full refresh every 14 days to catch price drops and sold listings.
+  The first run seeds every region.
+
+Run "Refresh listings and deploy" from the Actions tab to fetch immediately.
+
+### 4. Bookmarklet
+The Evaluate tab has a "Rate on RentalRater" button to drag to your bookmarks
+bar. Click it on any Zillow, Redfin or Realtor.com listing and it opens the
+Evaluate form filled in from that page.
 
 ## Data sources and limits
 - Zillow, Redfin and Realtor.com forbid scraping, so RentalRater doesn't.

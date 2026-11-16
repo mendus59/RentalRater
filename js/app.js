@@ -2,6 +2,8 @@ import * as store from './store.js';
 import { evaluate, evaluateAll, applicableScenarios, maxPriceForBuy, evaluationFlags, money, fmtYears, isLand, guessCondition } from './calc.js';
 import { mergePrefs, DEFAULT_PREFS, PROPERTY_TYPES, SCENARIOS, CONDITIONS, COST_PARAMS } from './defaults.js';
 import { MARKETS, STATE_DEFAULTS, allMarkets, findMarket } from './markets.js';
+import { nearestWater } from './geo.js';
+import { bookmarkletHref } from './bookmarklet.js';
 
 const state = {
   tab: 'listings',
@@ -29,6 +31,11 @@ async function boot() {
     const res = await fetch(`data/listings.json?ts=${Date.now()}`);
     if (res.ok) state.data = await res.json();
   } catch { /* offline or missing file: manual evaluation still works */ }
+  try {
+    const res = await fetch('config/searches.json');
+    if (res.ok) state.coverage = await res.json();
+  } catch { /* coverage notes are optional */ }
+  readPrefillFromHash();
 
   const { mode, error } = await store.init();
   if (error) toast(error);
@@ -44,6 +51,17 @@ async function boot() {
     if (state.data.updatedAt) store.markVisit(new Date().toISOString()).catch(() => {});
   });
   if (mode === 'firebase' && !store.currentUser()) renderSignedOut();
+}
+
+// The bookmarklet opens the app as #evaluate?address=...&price=...
+function readPrefillFromHash() {
+  const h = location.hash;
+  if (!h.startsWith('#evaluate')) return;
+  const qs = h.split('?')[1] || '';
+  state.prefill = Object.fromEntries(new URLSearchParams(qs).entries());
+  state.tab = 'evaluate';
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'evaluate'));
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 function renderAccount() {
@@ -73,6 +91,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'save-settings') saveSettings();
   if (act === 'reset-settings') { if (confirmReset()) { state.prefs = mergePrefs({}); await store.savePrefs(DEFAULT_PREFS); render(); toast('Settings reset'); } }
   if (act === 'eval-manual') evalManual();
+  if (act === 'copy-bookmarklet') { try { await navigator.clipboard.writeText($('#bookmarklet').dataset.code); toast('Bookmarklet code copied'); } catch { toast("Couldn't copy. Long-press the button instead."); } }
 });
 
 function confirmReset() { return window.confirm('Reset all settings to defaults?'); }
@@ -143,6 +162,7 @@ function renderListings() {
   const goalTxt = p.goal === 'breakeven' ? 'break even on the mortgage indefinitely' : `earn back your cash within ${p.goalYears} years${p.includeEquity ? ' (counting equity)' : ''}`;
 
   $('#main').innerHTML = `
+    ${coverageNotice()}
     ${sampleOnly ? `<div class="notice"><strong>Sample data.</strong> These are made-up listings so you can try the app. Real WA and OR listings appear once the daily job has a RentCast API key (see the README).</div>` : ''}
     <div class="row" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
       <h1>Listings</h1>
@@ -164,6 +184,28 @@ function renderListings() {
   $('#f-sort').addEventListener('change', (e) => { f.sort = e.target.value; renderListings(); });
 }
 
+function coverageNotice() {
+  const c = state.coverage;
+  if (!c) return '';
+  const f = c.filters || {};
+  const maxPrice = Number(String(f.price || '').split(':')[1]);
+  const regions = c.regions || [];
+  const live = (state.data.coverage?.regions || []).reduce((m, r) => ((m[r.id] = r), m), {});
+  const when = (id) => { const d = live[id]?.lastRefreshed; return d ? `checked ${new Date(d).toLocaleDateString()}` : 'not fetched yet'; };
+  return `<details class="notice coverage"><summary><strong>What's covered:</strong> ${esc((f.propertyType || '').split('|').join(', '))} under ${money(maxPrice || 0)}, within ${f.maxWaterMiles ?? 10} miles of the Pacific, Puget Sound, the Columbia River and similar water, plus ${regions.filter((r) => !r.coastal).length} inland STR hotspots.</summary>
+    <p>To stay on RentCast's free plan (50 calls a month), new listings in each area are picked up every few days and every listing is fully re-checked about every two weeks. Distances to water are approximate. Anything outside this can still be rated on the Evaluate tab or with the bookmarklet.</p>
+    <div class="two"><div><b>Coastal and river areas</b><ul>${regions.filter((r) => r.coastal).map((r) => `<li>${esc(r.name)} <span class="muted small">(${when(r.id)})</span></li>`).join('')}</ul></div>
+    <div><b>Inland areas included anyway</b><ul>${regions.filter((r) => !r.coastal).map((r) => `<li>${esc(r.name)} <span class="muted small">(${when(r.id)})</span><br><span class="small">${esc(r.why || '')}</span></li>`).join('')}</ul>
+    <b>Left out on purpose</b><ul>${(c.excluded || []).map((x) => `<li class="small">${esc(x)}</li>`).join('')}</ul></div></div>
+  </details>`;
+}
+
+function waterText(l) {
+  const w = l.waterMiles != null ? { miles: l.waterMiles, name: l.waterName } : nearestWater(l.latitude, l.longitude);
+  if (!w || !w.name) return '';
+  return w.miles < 0.5 ? `On or by the ${w.name}` : `~${w.miles} mi to the ${w.name}`;
+}
+
 function renderListingsKeepFocus() { const pos = $('#f-q').selectionStart; renderListings(); const q = $('#f-q'); q.focus(); q.setSelectionRange(pos, pos); }
 function debounce(fn, ms) { clearTimeout(debounce._t); debounce._t = setTimeout(fn, ms); }
 
@@ -179,7 +221,7 @@ function card(l, r) {
       <span>${isNew(l) ? '<span class="badge new">New</span> ' : ''}${l.sample ? '<span class="badge sample">Sample</span> ' : ''}${state.saved[l.id] ? '★' : ''}</span></div>
     <div class="addr">${esc(l.formattedAddress || l.addressLine1 || 'Unknown address')}</div>
     <div class="facts">${money(l.price)} · ${facts}</div>
-    <div class="facts">${esc(r.market.name)} · ${esc(SCENARIOS[r.scenario].short)}</div>
+    <div class="facts">${esc(r.market.name)} · ${esc(SCENARIOS[r.scenario].short)}${waterText(l) ? ' · ' + esc(waterText(l)) : ''}</div>
     <div class="nums">
       <div><span>Cash flow</span><b class="${r.monthlyCF >= 0 ? 'pos' : 'neg'}">${money(r.monthlyCF)}/mo</b></div>
       <div><span>Payback</span><b>${fmtYears(pb)}</b></div>
@@ -227,7 +269,7 @@ function renderDetail() {
   $('#drawer').innerHTML = `<div class="sheet" role="dialog" aria-label="Property evaluation">
     <header>
       <div><h1>${esc(l.formattedAddress || 'Property')}</h1>
-        <div class="muted small">${esc(r.market.name)}, ${esc(r.market.state)} · ${l.sample ? 'Sample listing' : `<a href="${searchUrl}" target="_blank" rel="noopener">Look up this listing</a>`}${l.daysOnMarket != null ? ` · ${l.daysOnMarket} days on market` : ''}</div></div>
+        <div class="muted small">${esc(r.market.name)}, ${esc(r.market.state)} · ${l.sample ? 'Sample listing' : `<a href="${searchUrl}" target="_blank" rel="noopener">Look up this listing</a>`}${l.daysOnMarket != null ? ` · ${l.daysOnMarket} days on market` : ''}${waterText(l) ? ` · ${esc(waterText(l))}` : ''}${l.src ? ` · <a href="${esc(l.src)}" target="_blank" rel="noopener">Original listing</a>` : ''}</div></div>
       <div style="display:flex;gap:8px">${saved ? `<button class="btn" data-act="unsave-prop">★ Saved</button>` : `<button class="btn primary" data-act="save-prop">☆ Save</button>`}<button class="btn" data-act="close" aria-label="Close">✕</button></div>
     </header>
 
@@ -386,8 +428,32 @@ function renderEvaluate() {
         <label class="field">Condition<select name="condition"><option value="">Guess from year built</option>${Object.entries(CONDITIONS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></label>
         <label class="field">HOA ($/mo)<input type="number" name="hoa" min="0"></label>
       </div>
+      <input type="hidden" name="lat"><input type="hidden" name="lon"><input type="hidden" name="src">
       <p><button class="btn primary" data-act="eval-manual">Evaluate</button></p>
-    </form>`;
+    </form>
+    <section class="panel"><h2>Rate listings from Zillow, Redfin or Realtor.com</h2>
+      <p>Drag this button to your bookmarks bar: <a class="btn primary" id="bookmarklet" href="#">Rate on RentalRater</a></p>
+      <p class="small muted">While you're looking at a listing, click the bookmark. It reads that one page and opens this form with the address, price, beds, baths, size, lot, year built and HOA filled in. Check the numbers, since every site lays its pages out differently. On a phone, add any page as a bookmark, then edit it and paste <button class="btn link" data-act="copy-bookmarklet">this code</button> in as the address.</p>
+    </section>`;
+  const appUrl = location.origin + location.pathname;
+  const href = bookmarkletHref(appUrl);
+  const bm = $('#bookmarklet');
+  bm.setAttribute('href', href);
+  bm.addEventListener('click', (e) => { e.preventDefault(); toast('Drag this button to your bookmarks bar'); });
+  bm.dataset.code = href;
+  if (state.prefill) fillForm(state.prefill);
+}
+
+function fillForm(p) {
+  const form = $('#manual');
+  const set = (name, val) => { if (val != null && val !== '' && form.elements[name]) form.elements[name].value = val; };
+  set('address', p.address); set('city', p.city);
+  if (/^(WA|OR)$/i.test(p.state || '')) set('state', p.state.toUpperCase());
+  if (PROPERTY_TYPES.includes(p.type)) set('type', p.type);
+  set('price', p.price && Math.round(Number(p.price))); set('beds', p.beds); set('baths', p.baths); set('sqft', p.sqft);
+  set('acres', p.acres); set('year', p.year); set('hoa', p.hoa); set('lat', p.lat); set('lon', p.lon); set('src', p.src);
+  state.prefill = null;
+  toast('Filled in from the listing. Check the numbers, then press Evaluate.');
 }
 
 function evalManual() {
@@ -401,6 +467,7 @@ function evalManual() {
     id: `manual-${Date.now()}`, manual: true, formattedAddress: v.address.trim(), city, state: st,
     propertyType: v.type, price: n(v.price), bedrooms: n(v.beds), bathrooms: n(v.baths), squareFootage: n(v.sqft),
     lotSize: v.acres ? Number(v.acres) * 43560 : undefined, yearBuilt: n(v.year), condition: v.condition || undefined, hoaFee: n(v.hoa),
+    latitude: n(v.lat), longitude: n(v.lon), src: v.src || undefined,
   };
   if (v.market) listing.marketId = v.market;
   state.saved[listing.id] = { id: listing.id, listing, opts: {} };
