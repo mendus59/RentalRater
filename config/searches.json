@@ -1,42 +1,214 @@
 {
-  "_comment": "Daily RentCast listing pull. The free plan allows 50 calls a month and each call returns up to 500 listings. See README > Daily listings for how this file works.",
+  "_comment": "Daily RentCast listing pull. The free plan allows 50 calls a month and each call returns up to 500 listings. Wide new-listing sweeps run first; every region also gets a full refresh (prices, sold listings) when budget allows. See README > Daily listings.",
   "monthlyCallBudget": 48,
   "filters": {
     "propertyType": "Single Family|Condo|Townhouse|Manufactured|Land",
     "price": "*:1000000",
-    "maxWaterMiles": 10
+    "maxWaterMiles": 10,
+    "maxDaysOld": 365
   },
   "newListingSweeps": [
-    { "id": "new-wa-west", "name": "New listings: western WA", "latitude": 47.55, "longitude": -123.2, "radius": 100, "daysOld": 4, "everyDays": 3 },
-    { "id": "new-or-coast", "name": "New listings: Oregon coast", "latitude": 44.9, "longitude": -123.75, "radius": 100, "daysOld": 4, "everyDays": 3 },
-    { "id": "new-cascades", "name": "New listings: Gorge, Mt Hood, Rainier", "latitude": 46.2, "longitude": -121.0, "radius": 100, "daysOld": 4, "everyDays": 3 }
+    {
+      "id": "new-wa-west",
+      "name": "New listings: western WA",
+      "latitude": 47.55,
+      "longitude": -123.2,
+      "radius": 100,
+      "daysOld": 5,
+      "everyDays": 4
+    },
+    {
+      "id": "new-or-north",
+      "name": "New listings: north/central Oregon coast",
+      "latitude": 45.2,
+      "longitude": -123.75,
+      "radius": 100,
+      "daysOld": 5,
+      "everyDays": 4
+    },
+    {
+      "id": "new-or-south",
+      "name": "New listings: south Oregon coast and Bend",
+      "latitude": 43.6,
+      "longitude": -122.6,
+      "radius": 100,
+      "daysOld": 5,
+      "everyDays": 4
+    },
+    {
+      "id": "new-cascades",
+      "name": "New listings: Gorge, Mt Hood, Rainier, Chelan",
+      "latitude": 46.6,
+      "longitude": -121.0,
+      "radius": 100,
+      "daysOld": 5,
+      "everyDays": 4
+    }
   ],
   "regions": [
-    { "id": "wa-longbeach", "name": "Long Beach Peninsula / Willapa Bay", "latitude": 46.5, "longitude": -123.95, "radius": 20, "coastal": true },
-    { "id": "wa-graysharbor", "name": "Ocean Shores / Westport / Grays Harbor", "latitude": 47.02, "longitude": -124.0, "radius": 22, "coastal": true },
-    { "id": "wa-strait", "name": "Port Angeles / Sequim / Port Townsend", "latitude": 48.08, "longitude": -123.2, "radius": 32, "coastal": true },
-    { "id": "wa-hoodcanal", "name": "Hood Canal", "latitude": 47.62, "longitude": -122.95, "radius": 20, "coastal": true },
-    { "id": "wa-kitsap", "name": "Kitsap Peninsula / Bainbridge / Gig Harbor", "latitude": 47.62, "longitude": -122.68, "radius": 13, "coastal": true },
-    { "id": "wa-southsound", "name": "Olympia / Shelton / Key Peninsula", "latitude": 47.18, "longitude": -122.88, "radius": 18, "coastal": true },
-    { "id": "wa-whidbey", "name": "Whidbey and Camano Islands", "latitude": 48.15, "longitude": -122.55, "radius": 18, "coastal": true },
-    { "id": "wa-northsound", "name": "San Juans / Anacortes / Bellingham / Birch Bay", "latitude": 48.67, "longitude": -122.75, "radius": 26, "coastal": true },
-    { "id": "lower-columbia", "name": "Lower Columbia (Cathlamet / Longview / St Helens)", "latitude": 46.08, "longitude": -123.05, "radius": 20, "coastal": true },
-    { "id": "columbia-gorge", "name": "Columbia Gorge (Hood River / White Salmon / Stevenson)", "latitude": 45.68, "longitude": -121.65, "radius": 25, "coastal": true },
-    { "id": "wa-chelan", "name": "Lake Chelan / Wenatchee", "latitude": 47.75, "longitude": -120.15, "radius": 25, "coastal": true },
-    { "id": "or-northcoast", "name": "Astoria / Seaside / Cannon Beach / Tillamook", "latitude": 45.75, "longitude": -123.88, "radius": 35, "coastal": true },
-    { "id": "or-lincoln", "name": "Pacific City / Lincoln City / Newport / Yachats", "latitude": 44.75, "longitude": -124.02, "radius": 32, "coastal": true },
-    { "id": "or-southcoast", "name": "Florence / Coos Bay / Bandon", "latitude": 43.6, "longitude": -124.15, "radius": 35, "coastal": true },
-    { "id": "or-farsouth", "name": "Port Orford / Gold Beach / Brookings", "latitude": 42.4, "longitude": -124.35, "radius": 30, "coastal": true },
-    { "id": "x-rainier", "name": "Mount Rainier gateway (Packwood / Ashford)", "latitude": 46.7, "longitude": -121.85, "radius": 20, "coastal": false, "why": "Not near the coast, but cheap land and steady national-park demand make it one of the better tiny-home and cabin markets." },
-    { "id": "x-mthood", "name": "Mt Hood (Government Camp / Welches)", "latitude": 45.33, "longitude": -121.88, "radius": 12, "coastal": false, "why": "Year-round ski and summer demand with high nightly rates, an hour from Portland." },
-    { "id": "x-centraloregon", "name": "Bend / Sunriver / Sisters", "latitude": 44.0, "longitude": -121.45, "radius": 25, "coastal": false, "why": "Among the highest nightly rates and occupancy in Oregon. Bend's STR spacing rules apply." },
-    { "id": "x-methow", "name": "Methow Valley (Winthrop / Mazama)", "latitude": 48.48, "longitude": -120.19, "radius": 18, "coastal": false, "why": "Strong four-season demand and large rural lots suited to cabins and tiny homes." }
+    {
+      "id": "wa-longbeach",
+      "name": "Long Beach Peninsula / Willapa Bay",
+      "latitude": 46.5,
+      "longitude": -123.95,
+      "radius": 20,
+      "coastal": true
+    },
+    {
+      "id": "wa-graysharbor",
+      "name": "Ocean Shores / Westport / Grays Harbor",
+      "latitude": 47.02,
+      "longitude": -124.0,
+      "radius": 22,
+      "coastal": true
+    },
+    {
+      "id": "wa-strait",
+      "name": "Port Angeles / Sequim / Port Townsend",
+      "latitude": 48.08,
+      "longitude": -123.25,
+      "radius": 26,
+      "coastal": true
+    },
+    {
+      "id": "wa-hoodcanal",
+      "name": "Hood Canal",
+      "latitude": 47.62,
+      "longitude": -122.95,
+      "radius": 20,
+      "coastal": true
+    },
+    {
+      "id": "wa-kitsap",
+      "name": "Kitsap Peninsula / Bainbridge / Gig Harbor",
+      "latitude": 47.62,
+      "longitude": -122.68,
+      "radius": 13,
+      "coastal": true
+    },
+    {
+      "id": "wa-southsound",
+      "name": "Olympia / Shelton / Key Peninsula",
+      "latitude": 47.18,
+      "longitude": -122.88,
+      "radius": 18,
+      "coastal": true
+    },
+    {
+      "id": "wa-whidbey",
+      "name": "Whidbey and Camano Islands",
+      "latitude": 48.15,
+      "longitude": -122.55,
+      "radius": 18,
+      "coastal": true
+    },
+    {
+      "id": "wa-northsound",
+      "name": "San Juans / Anacortes / Bellingham / Birch Bay",
+      "latitude": 48.67,
+      "longitude": -122.75,
+      "radius": 26,
+      "coastal": true
+    },
+    {
+      "id": "lower-columbia",
+      "name": "Lower Columbia (Cathlamet / Longview / St Helens)",
+      "latitude": 46.08,
+      "longitude": -123.05,
+      "radius": 20,
+      "coastal": true
+    },
+    {
+      "id": "columbia-gorge",
+      "name": "Columbia Gorge (Hood River / White Salmon / Stevenson)",
+      "latitude": 45.68,
+      "longitude": -121.65,
+      "radius": 25,
+      "coastal": true
+    },
+    {
+      "id": "wa-chelan",
+      "name": "Lake Chelan / Wenatchee",
+      "latitude": 47.75,
+      "longitude": -120.15,
+      "radius": 25,
+      "coastal": true
+    },
+    {
+      "id": "or-northcoast",
+      "name": "Astoria / Seaside / Cannon Beach / Tillamook",
+      "latitude": 45.75,
+      "longitude": -123.88,
+      "radius": 35,
+      "coastal": true
+    },
+    {
+      "id": "or-lincoln",
+      "name": "Pacific City / Lincoln City / Newport / Yachats",
+      "latitude": 44.75,
+      "longitude": -124.02,
+      "radius": 32,
+      "coastal": true
+    },
+    {
+      "id": "or-southcoast",
+      "name": "Florence / Coos Bay / Bandon",
+      "latitude": 43.6,
+      "longitude": -124.15,
+      "radius": 35,
+      "coastal": true
+    },
+    {
+      "id": "or-farsouth",
+      "name": "Port Orford / Gold Beach / Brookings",
+      "latitude": 42.4,
+      "longitude": -124.35,
+      "radius": 30,
+      "coastal": true
+    },
+    {
+      "id": "x-rainier",
+      "name": "Mount Rainier gateway (Packwood / Ashford)",
+      "latitude": 46.7,
+      "longitude": -121.85,
+      "radius": 20,
+      "coastal": false,
+      "why": "Not near the coast, but cheap land and steady national-park demand make it one of the better tiny-home and cabin markets."
+    },
+    {
+      "id": "x-mthood",
+      "name": "Mt Hood (Government Camp / Welches)",
+      "latitude": 45.33,
+      "longitude": -121.88,
+      "radius": 12,
+      "coastal": false,
+      "why": "Year-round ski and summer demand with high nightly rates, an hour from Portland."
+    },
+    {
+      "id": "x-centraloregon",
+      "name": "Bend / Sunriver / Sisters",
+      "latitude": 44.0,
+      "longitude": -121.45,
+      "radius": 25,
+      "coastal": false,
+      "why": "Among the highest nightly rates and occupancy in Oregon. Bend's STR spacing rules apply."
+    },
+    {
+      "id": "x-methow",
+      "name": "Methow Valley (Winthrop / Mazama)",
+      "latitude": 48.48,
+      "longitude": -120.19,
+      "radius": 18,
+      "coastal": false,
+      "why": "Strong four-season demand and large rural lots suited to cabins and tiny homes."
+    }
   ],
   "excluded": [
     "Seattle, Bellevue, Tacoma and Everett: Seattle caps operators at two STR units, competition is heavy, and these metros would use most of the monthly API budget.",
     "Portland and Vancouver WA: Portland only allows STRs with a resident host, so whole-home investor rentals generally aren't permitted.",
     "Leavenworth: Chelan County and the city cap new STR permits.",
-    "Multi-family (2+ units) and apartments, and anything over $1M."
+    "Multi-family (2+ units) and apartments, and anything over $1M.",
+    "Homes under $40k, lots under $5k and 0-bedroom units (usually timeshares, storage, boathouses or unbuildable lots), homes in mobile-home parks (space rent, and parks rarely allow STRs), and listings over a year old."
   ],
-  "regionRefreshEveryDays": 14
+  "regionRefreshEveryDays": 45
 }

@@ -14,6 +14,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { nearestWater, regionFor } from '../js/geo.js';
+import { junkReason } from '../js/calc.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LISTINGS = path.join(root, 'data/listings.json');
@@ -53,6 +54,8 @@ export function annotate(l, config) {
   if (types.length && l.propertyType && !types.includes(l.propertyType)) return null;
   const maxPrice = Number(String(f.price || '').split(':')[1]) || Infinity;
   if (l.price > maxPrice) return null;
+  if (junkReason(l)) return null;
+  if (f.maxDaysOld && l.listedDate && Date.now() - Date.parse(l.listedDate) > f.maxDaysOld * DAY) return null;
   return { ...l, region: region.id, waterMiles: water?.miles, waterName: water?.name };
 }
 
@@ -86,12 +89,19 @@ export function merge(existing, fresh, nowIso, { regionId = null, complete = fal
   return { listings, added, changed, removed };
 }
 
-/** Calls allowed so far this month, spread evenly by day. */
+/**
+ * Calls this run may spend: whatever is left this month after keeping enough
+ * for the new-listing sweeps on the remaining days.
+ */
 export function callsAvailable(config, st, now) {
   const budget = config.monthlyCallBudget ?? 48;
   const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
-  const allowed = Math.min(budget, Math.ceil(budget * now.getUTCDate() / daysInMonth));
-  return Math.max(0, allowed - (st.calls || 0));
+  const daysLeft = daysInMonth - now.getUTCDate();
+  const perDay = (config.newListingSweeps || []).reduce((s, x) => s + 1 / (x.everyDays || 3), 0);
+  const reserve = Math.ceil(daysLeft * perDay);
+  const left = budget - (st.calls || 0);
+  // Always allow today's share of sweeps, even if the reserve is tight.
+  return Math.max(0, Math.min(left, Math.max(left - reserve, Math.ceil(perDay))));
 }
 
 /** Order the jobs that are due: never-fetched regions, then new-listing sweeps, then stale regions. */
@@ -113,7 +123,8 @@ function query(job, config, offset) {
   const q = new URLSearchParams({ status: 'Active', limit: String(PAGE), offset: String(offset), latitude: String(job.latitude), longitude: String(job.longitude), radius: String(job.radius) });
   if (f.propertyType) q.set('propertyType', f.propertyType);
   if (f.price) q.set('price', f.price);
-  if (job.daysOld) q.set('daysOld', `*:${job.daysOld}`);
+  const maxAge = job.daysOld || f.maxDaysOld;
+  if (maxAge) q.set('daysOld', `*:${maxAge}`);
   return `${API}?${q}`;
 }
 
