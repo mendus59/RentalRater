@@ -11,7 +11,7 @@ const state = {
   data: { listings: [], updatedAt: null },
   saved: {},            // id -> { id, listing, opts, notes }
   lastVisit: null,
-  filters: { verdict: 'all', market: 'all', q: '', sort: 'verdict', water: 'any', view: 'list' },
+  filters: { verdict: 'all', markets: [], areaOpen: false, q: '', sort: 'verdict', water: 'any', view: 'list' },
   user: null,
   detail: null,         // { listing, opts }
 };
@@ -89,6 +89,10 @@ document.addEventListener('click', async (e) => {
   if (act === 'unsave-prop') unsaveDetail();
   if (act === 'reset-cost') { delete state.detail.opts.startupOverrides[t.dataset.key]; renderDetail(); }
   if (act === 'view') { state.filters.view = t.dataset.v; renderListings(); return; }
+  if (act === 'areas-all' || act === 'areas-none') {
+    state.filters.markets = act === 'areas-all' ? [...document.querySelectorAll('#f-areas input[data-area]')].map((x) => x.dataset.area) : [];
+    renderListings(); return;
+  }
   if (act === 'verdict-chip') { state.filters.verdict = t.dataset.v; renderListings(); }
   if (act === 'save-settings') saveSettings();
   if (act === 'reset-settings') { if (confirmReset()) { state.prefs = mergePrefs({}); evalCache.clear(); await store.savePrefs(DEFAULT_PREFS); render(); toast('Settings reset'); } }
@@ -154,16 +158,30 @@ function evalListingUncached(l, savedOpts) {
 
 const VERDICT_RANK = { BUY: 0, MAYBE: 1, NO: 2 };
 
+function areaSummary(picked, markets) {
+  if (!picked.length || picked.length === markets.length) return 'All areas';
+  const names = picked.map((id) => markets.find((m) => m.id === id)?.name).filter(Boolean);
+  return esc(names.length <= 2 ? names.join(', ') : `${names.length} areas`);
+}
+
+// Close the area picker when clicking anywhere else.
+document.addEventListener('click', (e) => {
+  const d = document.getElementById('f-areas');
+  if (d && d.open && !d.contains(e.target)) { d.open = false; state.filters.areaOpen = false; }
+});
+
 function renderListings() {
   const p = state.prefs;
   const active = (state.data.listings || []).filter((l) => l.status !== 'Inactive');
   const inPrefs = active.filter((l) => matchesPrefs(l, p));
   let rows = inPrefs.map((l) => ({ l, r: evalListing(l) }));
+  const f = state.filters;
+  const areaCounts = {};
+  rows.forEach(({ r }) => { areaCounts[r.market.id] = (areaCounts[r.market.id] || 0) + 1; });
+  if (f.markets.length) { const pick = new Set(f.markets); rows = rows.filter(({ r }) => pick.has(r.market.id)); }
   const counts = { all: rows.length, BUY: 0, MAYBE: 0, NO: 0 };
   rows.forEach(({ r }) => counts[r.verdict.code]++);
-  const f = state.filters;
   if (f.verdict !== 'all') rows = rows.filter(({ r }) => r.verdict.code === f.verdict);
-  if (f.market !== 'all') rows = rows.filter(({ r }) => r.market.id === f.market);
   if (f.water === 'near') rows = rows.filter(({ l }) => waterTags(l).length);
   if (f.water === 'beach') rows = rows.filter(({ l }) => waterTags(l).some((t) => t.strong));
   if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(({ l }) => `${l.formattedAddress} ${l.city} ${l.zipCode}`.toLowerCase().includes(q)); }
@@ -173,11 +191,14 @@ function renderListings() {
     payback: (a, b) => pb(a.r) - pb(b.r),
     cashflow: (a, b) => b.r.monthlyCF - a.r.monthlyCF,
     price: (a, b) => a.l.price - b.l.price,
+    cashLow: (a, b) => a.r.cashNeeded - b.r.cashNeeded,
+    cashHigh: (a, b) => b.r.cashNeeded - a.r.cashNeeded,
     newest: (a, b) => String(b.l.firstSeen || b.l.listedDate || '').localeCompare(String(a.l.firstSeen || a.l.listedDate || '')),
   };
   rows.sort(sorters[f.sort] || sorters.verdict);
 
-  const marketsInData = [...new Map(inPrefs.map((l) => { const m = findMarket(l, p.marketOverrides); return [m.id, m]; })).values()];
+  const marketsInData = [...new Map(inPrefs.map((l) => { const m = findMarket(l, p.marketOverrides); return [m.id, m]; })).values()].sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name));
+  f.markets = f.markets.filter((id) => marketsInData.some((m) => m.id === id));
   const updated = state.data.updatedAt ? new Date(state.data.updatedAt).toLocaleString() : null;
   const sampleOnly = active.length && active.every((l) => l.sample);
   const goalTxt = p.goal === 'breakeven' ? 'break even on the mortgage indefinitely' : `earn back your cash within ${p.goalYears} years${p.includeEquity ? ' (counting equity)' : ''}`;
@@ -194,16 +215,24 @@ function renderListings() {
     </div>
     <div class="filters">
       <label>Search<input type="search" id="f-q" value="${esc(f.q)}" placeholder="Address, city, ZIP"></label>
-      <label>Area<select id="f-market"><option value="all">All areas</option>${marketsInData.map((m) => `<option value="${m.id}" ${f.market === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>
+      <div class="field"><span>Areas</span><details class="multi" id="f-areas" ${f.areaOpen ? 'open' : ''}><summary>${areaSummary(f.markets, marketsInData)}</summary>
+        <div class="multi-menu">
+          <div class="multi-actions"><button class="btn link" data-act="areas-all">Select all</button><button class="btn link" data-act="areas-none">Clear</button></div>
+          ${marketsInData.map((m) => `<label class="check"><input type="checkbox" data-area="${m.id}" ${f.markets.includes(m.id) ? 'checked' : ''}> ${esc(m.name)} <span class="muted small">${(areaCounts[m.id] || 0).toLocaleString()}</span></label>`).join('')}
+        </div></details></div>
       <label>Water<select id="f-water">${[['any', 'Any distance'], ['near', 'Within 1 mile'], ['beach', 'Beach / waterfront tags']].map(([k, v]) => `<option value="${k}" ${f.water === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-      <label>Sort<select id="f-sort">${[['verdict', 'Best verdict'], ['payback', 'Fastest payback'], ['cashflow', 'Monthly cash flow'], ['price', 'Lowest price'], ['newest', 'Newest']].map(([k, v]) => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label>Sort<select id="f-sort">${[['verdict', 'Best verdict'], ['payback', 'Fastest payback'], ['cashflow', 'Monthly cash flow'], ['cashLow', 'Least cash needed'], ['cashHigh', 'Most cash needed'], ['price', 'Lowest price'], ['newest', 'Newest']].map(([k, v]) => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <div class="viewtoggle" role="group" aria-label="View"><button class="btn ${f.view === 'list' ? 'primary' : ''}" data-act="view" data-v="list">List</button><button class="btn ${f.view === 'map' ? 'primary' : ''}" data-act="view" data-v="map">Map</button></div>
     </div>
     ${f.view === 'map' ? `<div id="map" class="map"></div><p class="muted small">${rows.filter(({ l }) => l.latitude != null).length.toLocaleString()} listings on the map. Colors: <span class="pos">● Buy</span> <span style="color:var(--maybe)">● Close</span> <span class="neg">● Don't buy</span>. Click a dot for details.</p>` : rows.length ? `<div class="grid">${rows.slice(0, 300).map(({ l, r }) => card(l, r)).join('')}</div>${rows.length > 300 ? `<p class="muted">Showing 300 of ${rows.length}. Narrow the filters to see more.</p>` : ''}`
       : `<div class="empty">${active.length ? 'No listings match your filters and Settings (areas, property types, max price).' : 'No listings yet. Use the Evaluate tab to rate a property by hand.'}</div>`}
   `;
   $('#f-q').addEventListener('input', (e) => { f.q = e.target.value; debounce(renderListingsKeepFocus, 200); });
-  $('#f-market').addEventListener('change', (e) => { f.market = e.target.value; renderListings(); });
+  $('#f-areas').addEventListener('toggle', (e) => { f.areaOpen = e.target.open; });
+  $('#f-areas').querySelectorAll('input[data-area]').forEach((cb) => cb.addEventListener('change', () => {
+    f.markets = [...$('#f-areas').querySelectorAll('input[data-area]:checked')].map((x) => x.dataset.area);
+    renderListings();
+  }));
   $('#f-sort').addEventListener('change', (e) => { f.sort = e.target.value; renderListings(); });
   $('#f-water').addEventListener('change', (e) => { f.water = e.target.value; renderListings(); });
   if (f.view === 'map') renderMap(rows);
