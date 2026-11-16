@@ -35,7 +35,7 @@ property listings as short-term rental investments and gives each one a
 
 ### 1. GitHub Pages
 Settings → Pages → Source: **GitHub Actions**. The `Refresh listings and deploy`
-workflow publishes the site on every push to `main` and once a day.
+workflow publishes the site on every push to `main` and on the monthly refresh.
 
 ### 2. Firebase (sign-in + saved data)
 The config is in `js/firebase-config.js` (web keys are safe to commit).
@@ -50,7 +50,7 @@ later); `users/{uid}/properties/{id}` holds saved and hand-entered properties.
 If `apiKey` is blank or Firebase can't load, the app runs in local mode and saves
 to the browser.
 
-### 3. Daily listings (RentCast)
+### 3. Monthly listings (RentCast)
 The key lives in the `RENTCAST_API_KEY` repo secret. `config/searches.json`
 controls what gets pulled:
 
@@ -63,10 +63,9 @@ controls what gets pulled:
   Seattle/Tacoma/Everett, Portland/Vancouver and Leavenworth are left out on
   purpose; the reasons are listed in the file and shown in the app.
 - **Budget**: the free plan gives 50 calls/month and each call returns up to
-  500 listings. The job spreads 48 calls evenly over the month. Three wide
-  "new listings" sweeps (last 4 days only) run every 3 days, and each region
-  gets a full refresh every 14 days to catch price drops and sold listings.
-  The first run seeds every region.
+  500 listings. One run on the 1st of each month refreshes every region (about
+  45 calls for ~9,000 listings). If it runs out, the regions it missed go first
+  next month.
 
 Run "Refresh listings and deploy" from the Actions tab to fetch immediately.
 
@@ -91,4 +90,4 @@ Tests: `node --test tests/*.test.mjs`.
 - `js/markets.js` WA/OR area data
 - `js/store.js` Firebase / local storage
 - `js/app.js` UI
-- `scripts/fetch-listings.mjs` daily RentCast fetch
+- `scripts/fetch-listings.mjs` monthly RentCast fetch

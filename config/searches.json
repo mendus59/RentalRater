@@ -1,5 +1,5 @@
 {
-  "_comment": "Daily RentCast listing pull. The free plan allows 50 calls a month and each call returns up to 500 listings. Wide new-listing sweeps run first; every region also gets a full refresh (prices, sold listings) when budget allows. See README > Daily listings.",
+  "_comment": "Monthly RentCast listing pull. The free plan allows 50 calls a month and each call returns up to 500 listings; one run on the 1st refreshes every region (about 45 calls). If a run runs out of calls, the remaining regions are refreshed first next month. See README > Monthly listings.",
   "monthlyCallBudget": 48,
   "filters": {
     "propertyType": "Single Family|Condo|Townhouse|Manufactured|Land",
@@ -7,44 +7,7 @@
     "maxWaterMiles": 10,
     "maxDaysOld": 365
   },
-  "newListingSweeps": [
-    {
-      "id": "new-wa-west",
-      "name": "New listings: western WA",
-      "latitude": 47.55,
-      "longitude": -123.2,
-      "radius": 100,
-      "daysOld": 5,
-      "everyDays": 4
-    },
-    {
-      "id": "new-or-north",
-      "name": "New listings: north/central Oregon coast",
-      "latitude": 45.2,
-      "longitude": -123.75,
-      "radius": 100,
-      "daysOld": 5,
-      "everyDays": 4
-    },
-    {
-      "id": "new-or-south",
-      "name": "New listings: south Oregon coast and Bend",
-      "latitude": 43.6,
-      "longitude": -122.6,
-      "radius": 100,
-      "daysOld": 5,
-      "everyDays": 4
-    },
-    {
-      "id": "new-cascades",
-      "name": "New listings: Gorge, Mt Hood, Rainier, Chelan",
-      "latitude": 46.6,
-      "longitude": -121.0,
-      "radius": 100,
-      "daysOld": 5,
-      "everyDays": 4
-    }
-  ],
+  "newListingSweeps": [],
   "regions": [
     {
       "id": "wa-longbeach",
@@ -210,5 +173,5 @@
     "Multi-family (2+ units) and apartments, and anything over $1M.",
     "Homes under $40k, lots under $5k and 0-bedroom units (usually timeshares, storage, boathouses or unbuildable lots), homes in mobile-home parks (space rent, and parks rarely allow STRs), and listings over a year old."
   ],
-  "regionRefreshEveryDays": 45
+  "regionRefreshEveryDays": 10
 }

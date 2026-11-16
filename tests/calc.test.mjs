@@ -119,24 +119,17 @@ test('coverage keeps coastal listings within 10 miles of water and inland hotspo
   assert.equal(annotate(at(45.99, -123.92, { propertyType: 'Multi-Family' }), config), null);
 });
 
-test('daily calls are paced across the month and seeding comes first', () => {
-  const st = { calls: 0, lastRun: {} };
-  // Nov 1: keep 29 days x 1 sweep call/day in reserve.
-  assert.equal(callsAvailable(config, st, new Date('2026-11-01T14:00:00Z')), 19);
-  assert.equal(callsAvailable(config, { calls: 40 }, new Date('2026-11-30T14:00:00Z')), 8);
+test('monthly run spends the budget on unseeded, then stale regions', () => {
+  assert.equal(callsAvailable(config, { calls: 26 }, new Date('2026-11-16T14:00:00Z')), 22);
   assert.equal(callsAvailable(config, { calls: 48 }, new Date('2026-11-30T14:00:00Z')), 0);
-  // Even with a tight reserve, today's sweep still runs.
-  assert.equal(callsAvailable(config, { calls: 40 }, new Date('2026-11-20T14:00:00Z')), 1);
-  const now = new Date('2026-11-16T14:00:00Z');
-  let jobs = planJobs(config, st, now);
-  assert.equal(jobs.length, config.regions.length);
-  assert.ok(jobs.every((j) => j.kind === 'region'));
-  const lastRun = Object.fromEntries([...config.regions, ...config.newListingSweeps].map((j) => [j.id, '2026-11-15T14:00:00Z']));
-  assert.equal(planJobs(config, { lastRun }, now).length, 0);
-  lastRun['new-wa-west'] = '2026-11-12T14:00:00Z';
-  lastRun['wa-kitsap'] = '2026-09-25T14:00:00Z';
-  jobs = planJobs(config, { lastRun }, now);
-  assert.deepEqual(jobs.map((j) => j.id), ['new-wa-west', 'wa-kitsap']);
+  const now = new Date('2026-12-01T14:00:00Z');
+  const lastRun = Object.fromEntries(config.regions.map((r) => [r.id, '2026-11-16T14:00:00Z']));
+  delete lastRun['or-lincoln'];
+  lastRun['x-methow'] = '2026-11-28T14:00:00Z';
+  const jobs = planJobs(config, { lastRun }, now).map((j) => j.id);
+  assert.equal(jobs[0], 'or-lincoln');
+  assert.ok(!jobs.includes('x-methow'));
+  assert.equal(jobs.length, config.regions.length - 1);
 });
 
 test('timeshares and mobile-home-park listings are filtered out', async () => {

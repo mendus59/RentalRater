@@ -181,7 +181,7 @@ function renderListings() {
 
   $('#main').innerHTML = `
     ${coverageNotice()}
-    ${sampleOnly ? `<div class="notice"><strong>Sample data.</strong> These are made-up listings so you can try the app. Real WA and OR listings appear once the daily job has a RentCast API key (see the README).</div>` : ''}
+    ${sampleOnly ? `<div class="notice"><strong>Sample data.</strong> These are made-up listings so you can try the app. Real WA and OR listings appear once the monthly job has a RentCast API key (see the README).</div>` : ''}
     <div class="row" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
       <h1>Listings</h1>
       <span class="muted small">${sampleOnly ? 'Sample data' : updated ? `Updated ${esc(updated)}` : 'No listing data yet'} · Goal: ${esc(goalTxt)} · ${p.useVacasa ? 'Vacasa managed' : 'Self-managed'}</span>
@@ -211,7 +211,7 @@ function coverageNotice() {
   const live = (state.data.coverage?.regions || []).reduce((m, r) => ((m[r.id] = r), m), {});
   const when = (id) => { const d = live[id]?.lastRefreshed; return d ? `checked ${new Date(d).toLocaleDateString()}` : 'not fetched yet'; };
   return `<details class="notice coverage"><summary><strong>What's covered:</strong> ${esc((f.propertyType || '').split('|').join(', '))} under ${money(maxPrice || 0)}, within ${f.maxWaterMiles ?? 10} miles of the Pacific, Puget Sound, the Columbia River and similar water, plus ${regions.filter((r) => !r.coastal).length} inland STR hotspots.</summary>
-    <p>To stay on RentCast's free plan (50 calls a month), new listings in each area are picked up every few days and every listing is fully re-checked about every two weeks. Distances to water are approximate. Anything outside this can still be rated on the Evaluate tab or with the bookmarklet.</p>
+    <p>To stay on RentCast's free plan (50 calls a month), every area is refreshed once a month, on the 1st. New listings, price drops and sold listings show up after that run. Distances to water are approximate. Anything outside this can still be rated on the Evaluate tab or with the bookmarklet.</p>
     <div class="two"><div><b>Coastal and river areas</b><ul>${regions.filter((r) => r.coastal).map((r) => `<li>${esc(r.name)} <span class="muted small">(${when(r.id)})</span></li>`).join('')}</ul></div>
     <div><b>Inland areas included anyway</b><ul>${regions.filter((r) => !r.coastal).map((r) => `<li>${esc(r.name)} <span class="muted small">(${when(r.id)})</span><br><span class="small">${esc(r.why || '')}</span></li>`).join('')}</ul>
     <b>Left out on purpose</b><ul>${(c.excluded || []).map((x) => `<li class="small">${esc(x)}</li>`).join('')}</ul></div></div>
