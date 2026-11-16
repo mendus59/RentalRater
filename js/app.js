@@ -11,7 +11,7 @@ const state = {
   data: { listings: [], updatedAt: null },
   saved: {},            // id -> { id, listing, opts, notes }
   lastVisit: null,
-  filters: { verdict: 'all', market: 'all', q: '', sort: 'verdict' },
+  filters: { verdict: 'all', market: 'all', q: '', sort: 'verdict', water: 'any', view: 'list' },
   user: null,
   detail: null,         // { listing, opts }
 };
@@ -88,6 +88,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'save-prop') saveDetail();
   if (act === 'unsave-prop') unsaveDetail();
   if (act === 'reset-cost') { delete state.detail.opts.startupOverrides[t.dataset.key]; renderDetail(); }
+  if (act === 'view') { state.filters.view = t.dataset.v; renderListings(); return; }
   if (act === 'verdict-chip') { state.filters.verdict = t.dataset.v; renderListings(); }
   if (act === 'save-settings') saveSettings();
   if (act === 'reset-settings') { if (confirmReset()) { state.prefs = mergePrefs({}); evalCache.clear(); await store.savePrefs(DEFAULT_PREFS); render(); toast('Settings reset'); } }
@@ -163,6 +164,8 @@ function renderListings() {
   const f = state.filters;
   if (f.verdict !== 'all') rows = rows.filter(({ r }) => r.verdict.code === f.verdict);
   if (f.market !== 'all') rows = rows.filter(({ r }) => r.market.id === f.market);
+  if (f.water === 'near') rows = rows.filter(({ l }) => waterTags(l).length);
+  if (f.water === 'beach') rows = rows.filter(({ l }) => waterTags(l).some((t) => t.strong));
   if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(({ l }) => `${l.formattedAddress} ${l.city} ${l.zipCode}`.toLowerCase().includes(q)); }
   const pb = (r) => (r.includeEquity ? r.paybackWithEquityYear : r.paybackYear) ?? 99;
   const sorters = {
@@ -192,14 +195,85 @@ function renderListings() {
     <div class="filters">
       <label>Search<input type="search" id="f-q" value="${esc(f.q)}" placeholder="Address, city, ZIP"></label>
       <label>Area<select id="f-market"><option value="all">All areas</option>${marketsInData.map((m) => `<option value="${m.id}" ${f.market === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>
+      <label>Water<select id="f-water">${[['any', 'Any distance'], ['near', 'Within 1 mile'], ['beach', 'Beach / waterfront tags']].map(([k, v]) => `<option value="${k}" ${f.water === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>Sort<select id="f-sort">${[['verdict', 'Best verdict'], ['payback', 'Fastest payback'], ['cashflow', 'Monthly cash flow'], ['price', 'Lowest price'], ['newest', 'Newest']].map(([k, v]) => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <div class="viewtoggle" role="group" aria-label="View"><button class="btn ${f.view === 'list' ? 'primary' : ''}" data-act="view" data-v="list">List</button><button class="btn ${f.view === 'map' ? 'primary' : ''}" data-act="view" data-v="map">Map</button></div>
     </div>
-    ${rows.length ? `<div class="grid">${rows.slice(0, 300).map(({ l, r }) => card(l, r)).join('')}</div>${rows.length > 300 ? `<p class="muted">Showing 300 of ${rows.length}. Narrow the filters to see more.</p>` : ''}`
+    ${f.view === 'map' ? `<div id="map" class="map"></div><p class="muted small">${rows.filter(({ l }) => l.latitude != null).length.toLocaleString()} listings on the map. Colors: <span class="pos">● Buy</span> <span style="color:var(--maybe)">● Close</span> <span class="neg">● Don't buy</span>. Click a dot for details.</p>` : rows.length ? `<div class="grid">${rows.slice(0, 300).map(({ l, r }) => card(l, r)).join('')}</div>${rows.length > 300 ? `<p class="muted">Showing 300 of ${rows.length}. Narrow the filters to see more.</p>` : ''}`
       : `<div class="empty">${active.length ? 'No listings match your filters and Settings (areas, property types, max price).' : 'No listings yet. Use the Evaluate tab to rate a property by hand.'}</div>`}
   `;
   $('#f-q').addEventListener('input', (e) => { f.q = e.target.value; debounce(renderListingsKeepFocus, 200); });
   $('#f-market').addEventListener('change', (e) => { f.market = e.target.value; renderListings(); });
   $('#f-sort').addEventListener('change', (e) => { f.sort = e.target.value; renderListings(); });
+  $('#f-water').addEventListener('change', (e) => { f.water = e.target.value; renderListings(); });
+  if (f.view === 'map') renderMap(rows);
+}
+
+// ---------------------------------------------------------------- map
+let leafletReady = null;
+function loadLeaflet() {
+  if (leafletReady) return leafletReady;
+  leafletReady = new Promise((resolve, reject) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'vendor/leaflet/leaflet.js';
+    js.onload = () => resolve(window.L); js.onerror = () => { leafletReady = null; reject(new Error('Map library failed to load')); };
+    document.head.appendChild(js);
+  });
+  return leafletReady;
+}
+
+let mapView = null; // remembers center/zoom between renders
+async function renderMap(rows) {
+  let L;
+  try { L = await loadLeaflet(); } catch (e) { const el = $('#map'); if (el) el.innerHTML = `<p class="pad muted">${esc(e.message)}</p>`; return; }
+  const el = $('#map');
+  if (!el) return;
+  const map = L.map(el, { preferCanvas: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+  const colors = { BUY: getCss('--buy'), MAYBE: getCss('--maybe'), NO: getCss('--no') };
+  const pts = [];
+  // Draw Don't buy first so Buy dots sit on top.
+  const ordered = [...rows].sort((a, b) => VERDICT_RANK[b.r.verdict.code] - VERDICT_RANK[a.r.verdict.code]);
+  for (const { l, r } of ordered) {
+    if (l.latitude == null || l.longitude == null) continue;
+    pts.push([l.latitude, l.longitude]);
+    const m = L.circleMarker([l.latitude, l.longitude], { radius: r.verdict.code === 'BUY' ? 6 : 4, color: colors[r.verdict.code], weight: 1, fillOpacity: 0.8 }).addTo(map);
+    const tags = waterTags(l).map((t) => t.label).join(', ');
+    m.bindPopup(`<b>${esc(r.verdict.label)}</b> · ${money(l.price)}<br>${esc(l.formattedAddress || '')}<br>${esc(SCENARIOS[r.scenario].short)} · ${money(r.monthlyCF)}/mo${tags ? `<br>${esc(tags)}` : ''}<br><button class="btn link" data-open="${esc(l.id)}">Open details</button>`);
+  }
+  if (mapView) map.setView(mapView.center, mapView.zoom);
+  else if (pts.length) map.fitBounds(pts, { padding: [20, 20] });
+  else map.setView([46.5, -122.5], 6);
+  map.on('moveend', () => { mapView = { center: map.getCenter(), zoom: map.getZoom() }; });
+}
+
+function getCss(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888'; }
+
+// ---------------------------------------------------------------- water tags
+const BEACH_WORDS = /\b(beach|beachfront|ocean|oceanfront|shore|shores|shoreline|surf|sand|sands|dune|dunes|seaview|sea view|seaside|waterfront|bay ?view|harbor|lagoon|cove|spit|lakeshore|riverfront|landing)\b/i;
+function waterTags(l) {
+  const tags = [];
+  if (l.waterfront) tags.push({ label: 'Waterfront (from listing)', strong: true });
+  const w = l.waterMiles != null ? { miles: l.waterMiles, name: l.waterName } : nearestWater(l.latitude, l.longitude);
+  if (!w || !w.name) return tags;
+  const street = (l.addressLine1 || l.formattedAddress || '').split(',')[0];
+  if (!l.waterfront && w.miles <= 1 && BEACH_WORDS.test(street)) tags.push({ label: /ocean|beach|surf|sand|dune|sea/i.test(street) && w.name === 'Pacific Ocean' ? 'Likely beach area' : 'Likely waterfront area', strong: true });
+  if (w.miles <= 1 && !tags.length) tags.push({ label: `Near the ${w.name}`, strong: false });
+  return tags;
+}
+
+function listingLinks(l) {
+  const addr = l.formattedAddress || '';
+  if (!addr || l.sample) return [];
+  const links = [
+    { label: 'Zillow', href: `https://www.zillow.com/homes/${encodeURIComponent(addr.replace(/#/g, ''))}_rb/` },
+    { label: 'Redfin', href: `https://www.google.com/search?q=${encodeURIComponent(`site:redfin.com "${addr.split(',')[0]}" ${l.city || ''} ${l.state || ''}`)}` },
+  ];
+  if (l.src) links.unshift({ label: 'Original listing', href: l.src });
+  return links;
 }
 
 function coverageNotice() {
@@ -234,9 +308,9 @@ function card(l, r) {
   const facts = isLand(l)
     ? `Land · ${l.lotSize ? (l.lotSize / 43560).toFixed(2) + ' ac' : 'lot size n/a'}`
     : `${l.bedrooms ?? '?'} bd · ${l.bathrooms ?? '?'} ba · ${l.squareFootage ? l.squareFootage.toLocaleString() + ' sqft' : 'sqft n/a'} · ${esc(normalizeType(l.propertyType))}${l.yearBuilt ? ' · ' + l.yearBuilt : ''}`;
-  return `<button class="card" data-open="${esc(l.id)}">
+  return `<div class="cardwrap"><button class="card" data-open="${esc(l.id)}">
     <div class="row"><span class="badge ${r.verdict.code}">${esc(r.verdict.label)}</span>
-      <span>${isNew(l) ? '<span class="badge new">New</span> ' : ''}${l.sample ? '<span class="badge sample">Sample</span> ' : ''}${state.saved[l.id] ? '★' : ''}</span></div>
+      <span>${waterTags(l).map((t) => `<span class="badge ${t.strong ? 'water' : 'near'}">${esc(t.label)}</span> `).join('')}${isNew(l) ? '<span class="badge new">New</span> ' : ''}${l.sample ? '<span class="badge sample">Sample</span> ' : ''}${state.saved[l.id] ? '★' : ''}</span></div>
     <div class="addr">${esc(l.formattedAddress || l.addressLine1 || 'Unknown address')}</div>
     <div class="facts">${money(l.price)} · ${facts}</div>
     <div class="facts">${esc(r.market.name)} · ${esc(SCENARIOS[r.scenario].short)}${waterText(l) ? ' · ' + esc(waterText(l)) : ''}</div>
@@ -245,7 +319,7 @@ function card(l, r) {
       <div><span>Payback</span><b>${fmtYears(pb)}</b></div>
       <div><span>Cash needed</span><b>${money(r.cashNeeded)}</b></div>
     </div>
-  </button>`;
+  </button>${listingLinks(l).length ? `<div class="cardlinks">${listingLinks(l).map((x) => `<a href="${esc(x.href)}" target="_blank" rel="noopener">${esc(x.label)} ↗</a>`).join('')}</div>` : ''}</div>`;
 }
 
 // ---------------------------------------------------------------- detail
@@ -275,7 +349,6 @@ function renderDetail() {
   const scen = applicableScenarios(l, { ...p, scenarios: Object.keys(SCENARIOS) });
   const pb = r.includeEquity ? r.paybackWithEquityYear : r.paybackYear;
   const saved = !!state.saved[l.id];
-  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent((l.formattedAddress || '') + ' for sale')}`;
   const opt = (v, label, cur) => `<option value="${esc(v)}" ${String(cur) === String(v) ? 'selected' : ''}>${esc(label)}</option>`;
   const numField = (id, label, val, step = 'any', attrs = '') => `<label class="field">${label}<input type="number" id="${id}" value="${val ?? ''}" step="${step}" ${attrs}></label>`;
 
@@ -287,7 +360,7 @@ function renderDetail() {
   $('#drawer').innerHTML = `<div class="sheet" role="dialog" aria-label="Property evaluation">
     <header>
       <div><h1>${esc(l.formattedAddress || 'Property')}</h1>
-        <div class="muted small">${esc(r.market.name)}, ${esc(r.market.state)} · ${l.sample ? 'Sample listing' : `<a href="${searchUrl}" target="_blank" rel="noopener">Look up this listing</a>`}${l.daysOnMarket != null ? ` · ${l.daysOnMarket} days on market` : ''}${waterText(l) ? ` · ${esc(waterText(l))}` : ''}${l.src ? ` · <a href="${esc(l.src)}" target="_blank" rel="noopener">Original listing</a>` : ''}</div></div>
+        <div class="muted small">${esc(r.market.name)}, ${esc(r.market.state)} · ${l.sample ? 'Sample listing' : listingLinks(l).map((x) => `<a href="${esc(x.href)}" target="_blank" rel="noopener">${esc(x.label)} ↗</a>`).join(' · ')}${l.daysOnMarket != null ? ` · ${l.daysOnMarket} days on market` : ''}${waterText(l) ? ` · ${esc(waterText(l))}` : ''}</div>${waterTags(l).length ? `<div style="margin-top:6px">${waterTags(l).map((t) => `<span class="badge ${t.strong ? 'water' : 'near'}">${esc(t.label)}</span>`).join(' ')}</div>` : ''}</div>
       <div style="display:flex;gap:8px">${saved ? `<button class="btn" data-act="unsave-prop">★ Saved</button>` : `<button class="btn primary" data-act="save-prop">☆ Save</button>`}<button class="btn" data-act="close" aria-label="Close">✕</button></div>
     </header>
 
@@ -446,7 +519,7 @@ function renderEvaluate() {
         <label class="field">Condition<select name="condition"><option value="">Guess from year built</option>${Object.entries(CONDITIONS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></label>
         <label class="field">HOA ($/mo)<input type="number" name="hoa" min="0"></label>
       </div>
-      <input type="hidden" name="lat"><input type="hidden" name="lon"><input type="hidden" name="src">
+      <input type="hidden" name="lat"><input type="hidden" name="lon"><input type="hidden" name="src"><input type="hidden" name="waterfront">
       <p><button class="btn primary" data-act="eval-manual">Evaluate</button></p>
     </form>
     <section class="panel"><h2>Rate listings from Zillow, Redfin or Realtor.com</h2>
@@ -469,7 +542,7 @@ function fillForm(p) {
   if (/^(WA|OR)$/i.test(p.state || '')) set('state', p.state.toUpperCase());
   if (PROPERTY_TYPES.includes(p.type)) set('type', p.type);
   set('price', p.price && Math.round(Number(p.price))); set('beds', p.beds); set('baths', p.baths); set('sqft', p.sqft);
-  set('acres', p.acres); set('year', p.year); set('hoa', p.hoa); set('lat', p.lat); set('lon', p.lon); set('src', p.src);
+  set('acres', p.acres); set('year', p.year); set('hoa', p.hoa); set('lat', p.lat); set('lon', p.lon); set('src', p.src); set('waterfront', p.waterfront);
   state.prefill = null;
   toast('Filled in from the listing. Check the numbers, then press Evaluate.');
 }
@@ -485,7 +558,7 @@ function evalManual() {
     id: `manual-${Date.now()}`, manual: true, formattedAddress: v.address.trim(), city, state: st,
     propertyType: v.type, price: n(v.price), bedrooms: n(v.beds), bathrooms: n(v.baths), squareFootage: n(v.sqft),
     lotSize: v.acres ? Number(v.acres) * 43560 : undefined, yearBuilt: n(v.year), condition: v.condition || undefined, hoaFee: n(v.hoa),
-    latitude: n(v.lat), longitude: n(v.lon), src: v.src || undefined,
+    latitude: n(v.lat), longitude: n(v.lon), src: v.src || undefined, waterfront: v.waterfront === '1' || undefined,
   };
   if (v.market) listing.marketId = v.market;
   state.saved[listing.id] = { id: listing.id, listing, opts: {} };

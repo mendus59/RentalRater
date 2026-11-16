@@ -131,3 +131,17 @@ details > summary { cursor: pointer; font-weight: 600; margin: 4px 0; }
 .coverage summary { cursor: pointer; }
 .coverage ul { margin: 4px 0 10px; padding-left: 18px; }
 .coverage li { margin: 2px 0; }
+.badge.water { color: var(--info); background: var(--info-bg); }
+.badge.near { color: var(--muted); background: var(--surface-2); font-weight: 600; }
+.viewtoggle { display: flex; gap: 0; margin-left: auto; }
+.viewtoggle .btn { border-radius: 0; }
+.viewtoggle .btn:first-child { border-radius: 8px 0 0 8px; }
+.viewtoggle .btn:last-child { border-radius: 0 8px 8px 0; }
+.map { height: min(70vh, 640px); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; z-index: 0; }
+.leaflet-popup-content { font: 13px/1.4 system-ui, sans-serif; }
+.cardlinks { display: flex; gap: 12px; font-size: 13px; padding: 6px 14px 0; margin-top: -4px; }
+.card .row > span { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.cardwrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; padding-bottom: 10px; }
+.cardwrap:hover { box-shadow: var(--shadow); }
+.cardwrap .card { border: 0; background: none; flex: 1; }
+.cardwrap .card:hover { box-shadow: none; }
