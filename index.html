@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RentalRater</title>
+  <meta name="description" content="Rates Washington and Oregon listings as short-term rental investments.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 15 16 4l12 11v13H4z' fill='%232f6f5e'/%3E%3Cpath d='M11 22l4 4 7-9' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15 16 4l12 11v13H4z" fill="currentColor"/><path d="M11 22l4 4 7-9" stroke="var(--bg)" stroke-width="3" fill="none"/></svg>
+      <span>RentalRater</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button data-tab="listings" class="active">Listings</button>
+      <button data-tab="evaluate">Evaluate</button>
+      <button data-tab="saved">Saved</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <div class="account" id="account"></div>
+  </header>
+  <main id="main"><p class="muted pad">Loading…</p></main>
+  <div id="drawer" class="drawer" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
