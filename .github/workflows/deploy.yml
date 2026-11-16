@@ -1,10 +1,10 @@
 name: Refresh listings and deploy
 
-# Runs daily to pull new listings, and on every push to main. Either way it
+# Runs monthly to refresh listings, and on every push to main. Either way it
 # republishes the site to GitHub Pages (Settings > Pages > Source: GitHub Actions).
 on:
   schedule:
-    - cron: '17 14 * * *'   # daily, 6:17 AM Pacific standard time
+    - cron: '17 14 1 * *'   # 1st of each month, 6:17 AM Pacific standard time
   push:
     branches: [main]
   workflow_dispatch:
