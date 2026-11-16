@@ -36,6 +36,7 @@ function grab(APP) {
   q.hoa = g(/HOA[^$\n]{0,25}\$\s?([\d,]+)/i);
   var ty = t.match(/\b(Single Family|Condo|Townhouse|Townhome|Manufactured|Mobile|Vacant Land|Land|Lot)\b/i);
   if (ty) { var v = ty[1].toLowerCase(); q.type = /condo/.test(v) ? 'Condo' : /town/.test(v) ? 'Townhouse' : /manuf|mobile/.test(v) ? 'Manufactured' : /land|lot/.test(v) ? 'Land' : 'Single Family'; }
+  if (/\b(waterfront|beachfront|oceanfront|bayfront|riverfront|lakefront|beach access|private beach)\b/i.test(t)) q.waterfront = '1';
   q.src = location.href;
   for (var k in q) if (q[k] === '' || q[k] == null) delete q[k];
   window.open(APP + '#evaluate?' + new URLSearchParams(q).toString(), '_blank');
