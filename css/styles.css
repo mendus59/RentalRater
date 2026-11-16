@@ -145,3 +145,13 @@ details > summary { cursor: pointer; font-weight: 600; margin: 4px 0; }
 .cardwrap:hover { box-shadow: var(--shadow); }
 .cardwrap .card { border: 0; background: none; flex: 1; }
 .cardwrap .card:hover { box-shadow: none; }
+
+/* Multi-select area picker */
+.multi { position: relative; }
+.multi summary { list-style: none; cursor: pointer; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 28px 7px 9px; color: var(--text); font-size: 14px; min-width: 160px; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; }
+.multi summary::-webkit-details-marker { display: none; }
+.multi summary::after { content: '▾'; position: absolute; right: 9px; color: var(--muted); }
+.multi-menu { position: absolute; z-index: 1000; top: calc(100% + 4px); left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-height: 340px; overflow-y: auto; width: max-content; max-width: min(340px, calc(100vw - 32px)); }
+.multi-menu .check { display: flex; margin: 4px 0; }
+.multi-menu .check .small { margin-left: auto; padding-left: 10px; }
+.multi-actions { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); margin-bottom: 4px; padding-bottom: 4px; }
