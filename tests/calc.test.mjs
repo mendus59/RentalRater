@@ -121,17 +121,31 @@ test('coverage keeps coastal listings within 10 miles of water and inland hotspo
 
 test('daily calls are paced across the month and seeding comes first', () => {
   const st = { calls: 0, lastRun: {} };
-  assert.equal(callsAvailable(config, st, new Date('2026-11-01T14:00:00Z')), 2);
+  // Nov 1: keep 29 days x 1 sweep call/day in reserve.
+  assert.equal(callsAvailable(config, st, new Date('2026-11-01T14:00:00Z')), 19);
   assert.equal(callsAvailable(config, { calls: 40 }, new Date('2026-11-30T14:00:00Z')), 8);
   assert.equal(callsAvailable(config, { calls: 48 }, new Date('2026-11-30T14:00:00Z')), 0);
+  // Even with a tight reserve, today's sweep still runs.
+  assert.equal(callsAvailable(config, { calls: 40 }, new Date('2026-11-20T14:00:00Z')), 1);
   const now = new Date('2026-11-16T14:00:00Z');
   let jobs = planJobs(config, st, now);
   assert.equal(jobs.length, config.regions.length);
   assert.ok(jobs.every((j) => j.kind === 'region'));
   const lastRun = Object.fromEntries([...config.regions, ...config.newListingSweeps].map((j) => [j.id, '2026-11-15T14:00:00Z']));
   assert.equal(planJobs(config, { lastRun }, now).length, 0);
-  lastRun['new-wa-west'] = '2026-11-13T14:00:00Z';
-  lastRun['wa-kitsap'] = '2026-11-01T14:00:00Z';
+  lastRun['new-wa-west'] = '2026-11-12T14:00:00Z';
+  lastRun['wa-kitsap'] = '2026-09-25T14:00:00Z';
   jobs = planJobs(config, { lastRun }, now);
   assert.deepEqual(jobs.map((j) => j.id), ['new-wa-west', 'wa-kitsap']);
+});
+
+test('timeshares and mobile-home-park listings are filtered out', async () => {
+  const { junkReason, hoaFor } = await import('../js/calc.js');
+  assert.ok(junkReason({ propertyType: 'Condo', price: 7500 }));
+  assert.ok(junkReason({ propertyType: 'Manufactured', price: 67400, formattedAddress: '3371 SE Bielmeier Rd, Trlr 78, Port Orchard, WA' }));
+  assert.ok(junkReason({ propertyType: 'Manufactured', price: 49950, formattedAddress: '111 Dryke Rd, Spc 73, Sequim, WA' }));
+  assert.equal(junkReason({ propertyType: 'Manufactured', price: 249000, formattedAddress: '12 Elk Ln, Sequim, WA' }), '');
+  assert.equal(junkReason({ propertyType: 'Land', price: 25000 }), '');
+  assert.deepEqual(hoaFor({ propertyType: 'Condo' }), { amount: 350, estimated: true });
+  assert.deepEqual(hoaFor({ propertyType: 'Condo', hoaFee: 120 }), { amount: 120, estimated: false });
 });

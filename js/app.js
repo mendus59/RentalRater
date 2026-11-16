@@ -1,5 +1,5 @@
 import * as store from './store.js';
-import { evaluate, evaluateAll, applicableScenarios, maxPriceForBuy, evaluationFlags, money, fmtYears, isLand, guessCondition } from './calc.js';
+import { junkReason, evaluate, evaluateAll, applicableScenarios, maxPriceForBuy, evaluationFlags, money, fmtYears, isLand, guessCondition } from './calc.js';
 import { mergePrefs, DEFAULT_PREFS, PROPERTY_TYPES, SCENARIOS, CONDITIONS, COST_PARAMS } from './defaults.js';
 import { MARKETS, STATE_DEFAULTS, allMarkets, findMarket } from './markets.js';
 import { nearestWater } from './geo.js';
@@ -45,6 +45,7 @@ async function boot() {
     if (!u) { renderSignedOut(); return; }
     const d = await store.loadUser();
     state.prefs = mergePrefs(d.prefs);
+    evalCache.clear();
     state.lastVisit = d.lastVisit;
     state.saved = Object.fromEntries((await store.listProperties()).map((p) => [p.id, p]));
     render();
@@ -89,7 +90,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'reset-cost') { delete state.detail.opts.startupOverrides[t.dataset.key]; renderDetail(); }
   if (act === 'verdict-chip') { state.filters.verdict = t.dataset.v; renderListings(); }
   if (act === 'save-settings') saveSettings();
-  if (act === 'reset-settings') { if (confirmReset()) { state.prefs = mergePrefs({}); await store.savePrefs(DEFAULT_PREFS); render(); toast('Settings reset'); } }
+  if (act === 'reset-settings') { if (confirmReset()) { state.prefs = mergePrefs({}); evalCache.clear(); await store.savePrefs(DEFAULT_PREFS); render(); toast('Settings reset'); } }
   if (act === 'eval-manual') evalManual();
   if (act === 'copy-bookmarklet') { try { await navigator.clipboard.writeText($('#bookmarklet').dataset.code); toast('Bookmarklet code copied'); } catch { toast("Couldn't copy. Long-press the button instead."); } }
 });
@@ -100,6 +101,11 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.de
 
 function render() {
   if (!state.user) return;
+  if (state.tab === 'listings' && !evalCache.size && (state.data.listings || []).length > 200) {
+    $('#main').innerHTML = `<p class="muted pad">Rating ${(state.data.listings.length).toLocaleString()} listings…</p>`;
+    setTimeout(renderListings, 30);
+    return;
+  }
   if (state.tab === 'listings') renderListings();
   if (state.tab === 'evaluate') renderEvaluate();
   if (state.tab === 'saved') renderSaved();
@@ -108,6 +114,7 @@ function render() {
 
 // ---------------------------------------------------------------- listings
 function matchesPrefs(l, p) {
+  if (junkReason(l)) return false;
   const market = findMarket(l, p.marketOverrides);
   if (p.locations.length && !p.locations.includes(market.id)) return false;
   const type = normalizeType(l.propertyType);
@@ -126,8 +133,19 @@ function normalizeType(t = '') {
   return 'Single Family';
 }
 
+// Rating thousands of listings takes a moment, so results are cached until
+// settings or a saved property's assumptions change.
+const evalCache = new Map();
 function evalListing(l) {
   const savedOpts = state.saved[l.id]?.opts || {};
+  const key = `${l.id}|${l.price}|${JSON.stringify(savedOpts)}`;
+  if (evalCache.has(key)) return evalCache.get(key);
+  const r = evalListingUncached(l, savedOpts);
+  evalCache.set(key, r);
+  return r;
+}
+
+function evalListingUncached(l, savedOpts) {
   if (savedOpts.scenario) return evaluate(l, state.prefs, savedOpts);
   const all = evaluateAll(l, state.prefs, savedOpts);
   return all[0];
@@ -600,6 +618,7 @@ async function saveSettings() {
   });
   p.marketOverrides = overrides;
   state.prefs = p;
+  evalCache.clear();
   try { await store.savePrefs(p); toast('Settings saved'); } catch (e) { toast(`Couldn't save: ${e.message}`); }
 }
 

@@ -49,7 +49,7 @@ export const MARKETS = [
   },
   {
     id: 'wa-chelan', name: 'Lake Chelan', state: 'WA', county: 'Chelan',
-    cities: ['chelan', 'manson', 'entiat', 'wenatchee'],
+    cities: ['chelan', 'manson', 'entiat', 'chelan falls'],
     adr: 285, occupancy: 0.48, taxRate: 0.0085, costIndex: 1.1, insuranceMult: 1.1, permitCost: 1000, permitAnnual: 500,
     strFlags: ['Chelan County STR permit caps apply; the City of Chelan has its own STR licensing. Strong summer seasonality.'],
     tinyHomeFlags: [],
@@ -81,6 +81,13 @@ export const MARKETS = [
     adr: 310, occupancy: 0.55, taxRate: 0.0070, costIndex: 1.4, insuranceMult: 1.1, permitCost: 1500, permitAnnual: 500,
     strFlags: ['San Juan County caps vacation rental permits; new permits can be very limited. High risk: confirm before buying.'],
     tinyHomeFlags: [],
+  },
+  {
+    id: 'wa-boatonly', name: 'San Juan boat-access islands', state: 'WA', county: 'San Juan',
+    cities: ['decatur island', 'stuart island', 'center island', 'blakely island', 'waldron', 'waldron island', 'sinclair island', 'cypress island', 'spieden island', 'johns island', 'henry island', 'obstruction island', 'crane island'],
+    adr: 230, occupancy: 0.38, taxRate: 0.0070, costIndex: 1.9, insuranceMult: 1.2, permitCost: 1500, permitAnnual: 500,
+    strFlags: ['No ferry service: guests need a boat or floatplane, which cuts demand. Building costs run far above the mainland because materials and crews come by barge.', 'San Juan County caps vacation rental permits. High risk: confirm before buying.'],
+    tinyHomeFlags: ['Delivering a tiny home requires a barge.'],
   },
   {
     id: 'wa-bellingham', name: 'Bellingham / Whatcom', state: 'WA', county: 'Whatcom',
@@ -158,6 +165,13 @@ export const MARKETS = [
     strFlags: ['Lower demand market; generally permissive.'],
     tinyHomeFlags: [],
   },
+  {
+    id: 'wa-wenatchee', name: 'Wenatchee', state: 'WA', county: 'Chelan',
+    cities: ['wenatchee', 'east wenatchee', 'malaga', 'rock island', 'orondo'],
+    adr: 150, occupancy: 0.52, taxRate: 0.0090, costIndex: 1.05, insuranceMult: 1.05, permitCost: 500, permitAnnual: 250,
+    strFlags: ['Wenatchee and Chelan County regulate STRs; county permits are capped in some zones.'],
+    tinyHomeFlags: [],
+  },
   // ---------------- Oregon ----------------
   {
     id: 'or-portland', name: 'Portland', state: 'OR', county: 'Multnomah',
@@ -203,7 +217,7 @@ export const MARKETS = [
   },
   {
     id: 'or-hood', name: 'Hood River / Mt Hood', state: 'OR', county: 'Hood River',
-    cities: ['hood river', 'government camp', 'welches', 'rhododendron', 'brightwood', 'zigzag', 'parkdale', 'odell', 'mosier', 'the dalles'],
+    cities: ['hood river', 'government camp', 'welches', 'rhododendron', 'brightwood', 'zigzag', 'parkdale', 'odell', 'mosier'],
     adr: 255, occupancy: 0.52, taxRate: 0.0095, costIndex: 1.15, insuranceMult: 1.15, permitCost: 700, permitAnnual: 300,
     strFlags: ['Hood River city/county limit STRs (often owner-occupancy rules); Clackamas County (Mt Hood) requires STR registration.'],
     tinyHomeFlags: [],
@@ -227,6 +241,13 @@ export const MARKETS = [
     cities: ['st helens', 'st. helens', 'scappoose', 'columbia city', 'rainier', 'clatskanie', 'deer island', 'westport'],
     adr: 125, occupancy: 0.45, taxRate: 0.0105, costIndex: 1.05, insuranceMult: 1.0, permitCost: 200, permitAnnual: 100,
     strFlags: ['Lower demand market; check city licensing.'],
+    tinyHomeFlags: [],
+  },
+  {
+    id: 'or-thedalles', name: 'The Dalles', state: 'OR', county: 'Wasco',
+    cities: ['the dalles', 'dufur', 'rufus', 'biggs'],
+    adr: 140, occupancy: 0.48, taxRate: 0.0100, costIndex: 1.0, insuranceMult: 1.0, permitCost: 300, permitAnnual: 150,
+    strFlags: ['City licensing applies; lower demand than Hood River.'],
     tinyHomeFlags: [],
   },
 ];

@@ -14,6 +14,35 @@ export function isLand(listing) {
   return /land|lot/i.test(listing.propertyType || '') || (!listing.bedrooms && !listing.squareFootage && listing.propertyType !== 'Condo');
 }
 
+/**
+ * Listings that look like a rental investment on paper but usually aren't:
+ * timeshares and fractional shares (tiny prices), and homes in mobile-home
+ * parks (space rent, and parks rarely allow short-term rentals).
+ * Returns a reason string, or '' if the listing is fine.
+ */
+export function junkReason(l) {
+  const land = /land|lot/i.test(l.propertyType || '');
+  if (!land && l.price < 40000) return 'Under $40k: usually a timeshare, fractional share or a home on leased land.';
+  if (land && l.price < 5000) return 'Under $5k: usually an unbuildable or timeshare lot.';
+  if (land && /\bunit\s*#?\s*\w+/i.test(`${l.formattedAddress || ''}`)) return 'Lot sold as a condo unit (usually an RV-resort lot where you can\'t build).';
+  if (!land && l.bedrooms != null && l.bedrooms < 1) return 'No bedrooms: usually a storage, garage, boathouse or commercial unit.';
+  const addr = `${l.formattedAddress || ''} ${l.addressLine1 || ''}`;
+  if (/\b(usfs|forest service|leasehold|lease)\b/i.test(addr)) return 'Forest Service or leased land: you can\'t own the land or rent it out freely.';
+  const manufactured = /manufactured|mobile/i.test(l.propertyType || '');
+  const parkAddress = /\b(spc|space|sp|trlr|trailer|lot|unit)\s*#?\s*\w+/i.test(addr) || /\b(mobile|mhp|ests?|estates|park)\b/i.test(addr);
+  const noLand = !l.lotSize || l.lotSize < 4000;
+  if (manufactured && (parkAddress || (noLand && l.price < 150000))) return 'In a mobile-home park: space rent applies and parks rarely allow short-term rentals.';
+  return '';
+}
+
+/** Monthly HOA dues, estimated for condos and townhouses when the listing doesn't say. */
+export function hoaFor(l) {
+  if (l.hoaFee != null && l.hoaFee !== '') return { amount: Number(l.hoaFee), estimated: false };
+  if (/condo|apartment/i.test(l.propertyType || '')) return { amount: 350, estimated: true };
+  if (/town/i.test(l.propertyType || '')) return { amount: 200, estimated: true };
+  return { amount: 0, estimated: false };
+}
+
 export function lotAcres(listing) {
   return listing.lotSize ? listing.lotSize / SQFT_PER_ACRE : 0;
 }
@@ -203,8 +232,9 @@ export function evaluate(listing, prefs, opts = {}) {
     Maintenance: price * cp.maintenancePctOfValue / 100 + su.improvementValue * cp.maintenancePctOfValue / 200,
     'STR license renewal': (market.permitAnnual || 0) * nUnits,
     'Software / accounting': useVacasa ? 0 : cp.softwarePerYear,
-    HOA: (listing.hoaFee || 0) * 12,
   };
+  const hoa = hoaFor(listing);
+  if (hoa.amount) fixed[hoa.estimated ? 'HOA (estimated, not in listing)' : 'HOA'] = hoa.amount * 12;
   const variablePct = (useVacasa ? cp.vacasaFeePct : cp.platformFeePct) + cp.capexPctOfRevenue;
   const variable = (rev) => ({
     [useVacasa ? `Vacasa management (${cp.vacasaFeePct}%)` : `Platform fees (${cp.platformFeePct}%)`]: rev * (useVacasa ? cp.vacasaFeePct : cp.platformFeePct) / 100,
