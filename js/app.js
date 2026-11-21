@@ -176,6 +176,8 @@ function renderListings() {
   const inPrefs = active.filter((l) => matchesPrefs(l, p));
   let rows = inPrefs.map((l) => ({ l, r: evalListing(l) }));
   const f = state.filters;
+  const overCash = p.maxCash > 0 ? rows.filter(({ r }) => r.cashNeeded > p.maxCash).length : 0;
+  if (overCash) rows = rows.filter(({ r }) => r.cashNeeded <= p.maxCash);
   const areaCounts = {};
   rows.forEach(({ r }) => { areaCounts[r.market.id] = (areaCounts[r.market.id] || 0) + 1; });
   if (f.markets.length) { const pick = new Set(f.markets); rows = rows.filter(({ r }) => pick.has(r.market.id)); }
@@ -208,7 +210,7 @@ function renderListings() {
     ${sampleOnly ? `<div class="notice"><strong>Sample data.</strong> These are made-up listings so you can try the app. Real WA and OR listings appear once the monthly job has a RentCast API key (see the README).</div>` : ''}
     <div class="row" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
       <h1>Listings</h1>
-      <span class="muted small">${sampleOnly ? 'Sample data' : updated ? `Updated ${esc(updated)}` : 'No listing data yet'} · Goal: ${esc(goalTxt)} · ${p.useVacasa ? 'Vacasa managed' : 'Self-managed'}</span>
+      <span class="muted small">${sampleOnly ? 'Sample data' : updated ? `Updated ${esc(updated)}` : 'No listing data yet'} · Goal: ${esc(goalTxt)} · ${p.useVacasa ? 'Vacasa managed' : 'Self-managed'} · Max cash: ${p.maxCash > 0 ? money(p.maxCash) : 'no limit'}${overCash ? ` (${overCash.toLocaleString()} listings over it hidden)` : ''}</span>
     </div>
     <div class="stats">
       ${['all', 'BUY', 'MAYBE', 'NO'].map((v) => `<button class="chip ${f.verdict === v ? 'on' : ''}" data-act="verdict-chip" data-v="${v}">${v === 'all' ? 'All' : v === 'NO' ? "Don't buy" : v === 'MAYBE' ? 'Close' : 'Buy'} · ${counts[v]}</button>`).join('')}
@@ -220,12 +222,13 @@ function renderListings() {
           <div class="multi-actions"><button class="btn link" data-act="areas-all">Select all</button><button class="btn link" data-act="areas-none">Clear</button></div>
           ${marketsInData.map((m) => `<label class="check"><input type="checkbox" data-area="${m.id}" ${f.markets.includes(m.id) ? 'checked' : ''}> ${esc(m.name)} <span class="muted small">${(areaCounts[m.id] || 0).toLocaleString()}</span></label>`).join('')}
         </div></details></div>
+      <label title="Down payment plus closing and startup costs, using your loan settings. Saved with your settings.">Max cash needed<input type="number" id="f-cash" min="0" step="5000" value="${p.maxCash > 0 ? p.maxCash : ''}" placeholder="No limit" style="width:120px"></label>
       <label>Water<select id="f-water">${[['any', 'Any distance'], ['near', 'Within 1 mile'], ['beach', 'Beach / waterfront tags']].map(([k, v]) => `<option value="${k}" ${f.water === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>Sort<select id="f-sort">${[['verdict', 'Best verdict'], ['payback', 'Fastest payback'], ['cashflow', 'Monthly cash flow'], ['cashLow', 'Least cash needed'], ['cashHigh', 'Most cash needed'], ['price', 'Lowest price'], ['newest', 'Newest']].map(([k, v]) => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <div class="viewtoggle" role="group" aria-label="View"><button class="btn ${f.view === 'list' ? 'primary' : ''}" data-act="view" data-v="list">List</button><button class="btn ${f.view === 'map' ? 'primary' : ''}" data-act="view" data-v="map">Map</button></div>
     </div>
     ${f.view === 'map' ? `<div id="map" class="map"></div><p class="muted small">${rows.filter(({ l }) => l.latitude != null).length.toLocaleString()} listings on the map. Colors: <span class="pos">● Buy</span> <span style="color:var(--maybe)">● Close</span> <span class="neg">● Don't buy</span>. Click a dot for details.</p>` : rows.length ? `<div class="grid">${rows.slice(0, 300).map(({ l, r }) => card(l, r)).join('')}</div>${rows.length > 300 ? `<p class="muted">Showing 300 of ${rows.length}. Narrow the filters to see more.</p>` : ''}`
-      : `<div class="empty">${active.length ? 'No listings match your filters and Settings (areas, property types, max price).' : 'No listings yet. Use the Evaluate tab to rate a property by hand.'}</div>`}
+      : `<div class="empty">${active.length ? 'No listings match your filters and Settings (areas, property types, max price, max cash).' : 'No listings yet. Use the Evaluate tab to rate a property by hand.'}</div>`}
   `;
   $('#f-q').addEventListener('input', (e) => { f.q = e.target.value; debounce(renderListingsKeepFocus, 200); });
   $('#f-areas').addEventListener('toggle', (e) => { f.areaOpen = e.target.open; });
@@ -235,6 +238,7 @@ function renderListings() {
   }));
   $('#f-sort').addEventListener('change', (e) => { f.sort = e.target.value; renderListings(); });
   $('#f-water').addEventListener('change', (e) => { f.water = e.target.value; renderListings(); });
+  $('#f-cash').addEventListener('change', (e) => setMaxCash(e.target.value));
   if (f.view === 'map') renderMap(rows);
 }
 
@@ -325,6 +329,15 @@ function waterText(l) {
   const w = l.waterMiles != null ? { miles: l.waterMiles, name: l.waterName } : nearestWater(l.latitude, l.longitude);
   if (!w || !w.name) return '';
   return w.miles < 0.5 ? `On or by the ${w.name}` : `~${w.miles} mi to the ${w.name}`;
+}
+
+async function setMaxCash(v) {
+  const n = Math.max(0, Math.round(Number(v) || 0));
+  if (n === (state.prefs.maxCash || 0)) return;
+  state.prefs.maxCash = n;
+  evalCache.clear(); // the best plan per listing depends on the cash limit
+  renderListings();
+  try { await store.savePrefs(state.prefs); } catch (e) { toast(`Couldn't save: ${e.message}`); }
 }
 
 function renderListingsKeepFocus() { const pos = $('#f-q').selectionStart; renderListings(); const q = $('#f-q'); q.focus(); q.setSelectionRange(pos, pos); }
@@ -647,7 +660,8 @@ function renderSettings() {
     </section>
 
     <section class="panel"><h2>What to look for</h2>
-      <div class="settings-grid">${num('maxPrice', 'Max price ($)', p.maxPrice, 1000)}${num('minBeds', 'Min bedrooms', p.minBeds, 1)}</div>
+      <div class="settings-grid">${num('maxPrice', 'Max price ($)', p.maxPrice, 1000)}${num('minBeds', 'Min bedrooms', p.minBeds, 1)}${num('maxCash', 'Max cash needed ($, 0 = no limit)', p.maxCash, 1000)}</div>
+      <p class="small muted">Max cash needed is the down payment plus closing and startup costs for each property, using your default loan. Listings over it are hidden.</p>
       <h3 style="margin-top:12px">Property types</h3>${PROPERTY_TYPES.map((t) => chk('propertyTypes', t, p.propertyTypes.includes(t), t)).join('')}
       <h3 style="margin-top:12px">Plans to consider</h3>${Object.entries(SCENARIOS).map(([k, v]) => chk('scenarios', k, p.scenarios.includes(k), v.label)).join('')}
       <h3 style="margin-top:12px">Areas <span class="muted small">(none checked = all of WA and OR)</span></h3>
@@ -700,6 +714,7 @@ async function saveSettings() {
   p.downPct = n('downPct');
   p.maxPrice = n('maxPrice');
   p.minBeds = n('minBeds');
+  p.maxCash = Math.max(0, n('maxCash') || 0);
   p.propertyTypes = fd.getAll('propertyTypes');
   p.scenarios = fd.getAll('scenarios');
   p.locations = fd.getAll('locations');

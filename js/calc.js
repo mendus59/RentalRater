@@ -358,7 +358,9 @@ export function summarize(r) {
 /** Evaluate every applicable scenario and return them best-first. */
 export function evaluateAll(listing, prefs, opts = {}) {
   const scen = applicableScenarios(listing, prefs);
-  const list = (scen.length ? scen : [isLand(listing) ? 'build' : 'str_ready']).map((s) => evaluate(listing, prefs, { ...opts, scenario: s }));
+  let list = (scen.length ? scen : [isLand(listing) ? 'build' : 'str_ready']).map((s) => evaluate(listing, prefs, { ...opts, scenario: s }));
+  // With a cash limit, prefer plans that fit it (e.g. skip the tiny-home build if it pushes cash over).
+  if (prefs.maxCash > 0) { const fits = list.filter((r) => r.cashNeeded <= prefs.maxCash); if (fits.length) list = fits; }
   const rank = { BUY: 0, MAYBE: 1, NO: 2 };
   return list.sort((a, b) => rank[a.verdict.code] - rank[b.verdict.code] || score(b) - score(a));
 }

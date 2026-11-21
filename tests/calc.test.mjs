@@ -142,3 +142,15 @@ test('timeshares and mobile-home-park listings are filtered out', async () => {
   assert.deepEqual(hoaFor({ propertyType: 'Condo' }), { amount: 350, estimated: true });
   assert.deepEqual(hoaFor({ propertyType: 'Condo', hoaFee: 120 }), { amount: 120, estimated: false });
 });
+
+test('a cash limit picks the plan that fits it when another plan would go over', () => {
+  const big = { ...house, yearBuilt: 1975, lotSize: 20000 };
+  const all = evaluateAll(big, prefs);
+  const cashes = all.map((r) => r.cashNeeded);
+  const limit = Math.min(...cashes);
+  const limited = evaluateAll(big, mergePrefs({ maxCash: limit }));
+  assert.ok(limited.every((r) => r.cashNeeded <= limit));
+  assert.ok(limited.length >= 1);
+  // A limit nothing fits leaves all plans (the listing gets hidden by the app instead).
+  assert.equal(evaluateAll(big, mergePrefs({ maxCash: 1 })).length, all.length);
+});
