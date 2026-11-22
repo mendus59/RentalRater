@@ -84,6 +84,7 @@ export const DEFAULT_PREFS = {
   scenarios: ['str_ready', 'refurbish', 'tiny_home', 'build'],
   maxPrice: 1000000,
   minBeds: 0,
+  maxCash: 0,                    // most upfront cash (down + closing + startup) you can put in; 0 = no limit
   financeId: 'dscr30',
   downPct: 25,
   rateOverride: null,            // null = use the finance option's rate
