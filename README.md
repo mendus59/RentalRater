@@ -1,5 +1,19 @@
 # RentalRater
 
+<!-- site-summary:start -->
+<!-- This section is this project's card on https://mendus59.github.io and is copied there daily.
+     Keep it true of what's on main: one plain-text summary line (max 160 characters), then 1-6 short bullets.
+     See CLAUDE.md ("Site summary"). -->
+Rate Washington and Oregon property listings as short-term rental investments, with a Buy, Close or Don't buy verdict for each.
+
+- Browse active for-sale listings in coastal, river and STR-hotspot areas of WA and OR, refreshed monthly from RentCast, each with a verdict and the highest offer that still gets a Buy.
+- Compare plans per property: rent it as-is, refurbish, add tiny homes, or build a cabin on land.
+- Model financing (DSCR, conventional, land, construction, HELOC, seller financing or cash), startup costs and self-managed or Vacasa management.
+- Set your goal: earn back your cash within a set number of years, or just break even on the mortgage while you use the place.
+- Rate any Zillow, Redfin or Realtor.com listing with a bookmarklet that fills in the Evaluate form.
+- Sign in with Google to save settings and properties, or use it without an account in local mode.
+<!-- site-summary:end -->
+
 A static web app (GitHub Pages + Firebase) that rates Washington and Oregon
 property listings as short-term rental investments and gives each one a
 **Buy / Close / Don't buy** verdict, like:
@@ -10,7 +24,7 @@ property listings as short-term rental investments and gives each one a
 
 ## What it does
 
-- **Listings**: pulls active for-sale listings once a day (RentCast free plan),
+- **Listings**: pulls active for-sale listings once a month (RentCast free plan),
   filters them by your areas, property types, price and bedrooms, and rates each.
 - **Plans per property**: rent as-is, refurbish, add tiny homes, or build a cabin
   on land. It picks the best plan for each listing; you can switch.
