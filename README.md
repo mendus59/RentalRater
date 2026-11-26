@@ -14,6 +14,9 @@ Rate Washington and Oregon property listings as short-term rental investments, w
 - Sign in with Google to save settings and properties, or use it without an account in local mode.
 <!-- site-summary:end -->
 
+<!-- site-screenshot: docs/screenshot.jpg -->
+![Screenshot of RentalRater](docs/screenshot.jpg)
+
 A static web app (GitHub Pages + Firebase) that rates Washington and Oregon
 property listings as short-term rental investments and gives each one a
 **Buy / Close / Don't buy** verdict, like:
