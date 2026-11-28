@@ -42,7 +42,6 @@ async function boot() {
   store.onAuth(async (u) => {
     state.user = u;
     renderAccount();
-    if (!u) { renderSignedOut(); return; }
     const d = await store.loadUser();
     state.prefs = mergePrefs(d.prefs);
     evalCache.clear();
@@ -51,7 +50,6 @@ async function boot() {
     render();
     if (state.data.updatedAt) store.markVisit(new Date().toISOString()).catch(() => {});
   });
-  if (mode === 'firebase' && !store.currentUser()) renderSignedOut();
 }
 
 // The bookmarklet opens the app as #evaluate?address=...&price=...
@@ -68,12 +66,9 @@ function readPrefillFromHash() {
 function renderAccount() {
   const el = $('#account');
   if (store.getMode() === 'local') { el.innerHTML = `<span class="muted" title="Add your Firebase config to sync across devices">Local mode</span>`; return; }
-  if (!state.user) { el.innerHTML = `<button class="btn primary" data-act="signin">Sign in</button>`; return; }
+  if (!state.user) { el.innerHTML = ''; return; }
+  if (state.user.guest) { el.innerHTML = `<span class="muted" title="Your saved listings and settings stay in this browser until you sign in">Guest</span><button class="btn primary" data-act="signin">Sign in to sync</button>`; return; }
   el.innerHTML = `<span class="muted">${esc(state.user.displayName || '')}</span><button class="btn" data-act="signout">Sign out</button>`;
-}
-
-function renderSignedOut() {
-  $('#main').innerHTML = `<div class="empty"><h1>RentalRater</h1><p>Rates Washington and Oregon listings as short-term rental investments.</p><button class="btn primary" data-act="signin">Sign in with Google</button></div>`;
 }
 
 document.addEventListener('click', async (e) => {

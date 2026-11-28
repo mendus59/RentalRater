@@ -11,7 +11,7 @@ Rate Washington and Oregon property listings as short-term rental investments, w
 - Model financing (DSCR, conventional, land, construction, HELOC, seller financing or cash), startup costs and self-managed or Vacasa management.
 - Set your goal: earn back your cash within a set number of years, or just break even on the mortgage while you use the place.
 - Rate any Zillow, Redfin or Realtor.com listing with a bookmarklet that fills in the Evaluate form.
-- Sign in with Google to save settings and properties, or use it without an account in local mode.
+- Use it right away as a guest, with saved properties and settings kept in your browser, or sign in with Google to sync them across devices.
 <!-- site-summary:end -->
 
 <!-- site-screenshot: docs/screenshot.jpg -->
